@@ -114,14 +114,14 @@ behaviorLib.nTargetPositioningMul = 0.6
 ------------------------------
 
 function object:SkillBuild()
-    local unitSelf = self.core.unitSelf
-    if  skills.abilStep == nil then
-        skills.abilStep = unitSelf:GetAbility(0)
-        skills.abilStalk = unitSelf:GetAbility(1)
-        skills.abilStrike = unitSelf:GetAbility(2)
-        skills.abilAssault = unitSelf:GetAbility(3)
-        skills.abilAttributeBoost = unitSelf:GetAbility(4)
-    end
+	local unitSelf = self.core.unitSelf
+	if  skills.abilStep == nil then
+		skills.abilStep = unitSelf:GetAbility(0)
+		skills.abilStalk = unitSelf:GetAbility(1)
+		skills.abilStrike = unitSelf:GetAbility(2)
+		skills.abilAssault = unitSelf:GetAbility(3)
+		skills.abilAttributeBoost = unitSelf:GetAbility(4)
+	end
 	
 	local nPoints = unitSelf:GetAbilityPointsAvailable()
 	if nPoints <= 0 then
@@ -145,22 +145,22 @@ local function funcFindItemsOverride(botBrain)
 		core.itemSteamboots = nil
 	end
      
-    if bUpdated then
-        --only update if we need to
-        if core.itemSteamboots and  core.itemHellflower and core.itemSheepstick then
-            return
-        end
-         
-        local inventory = core.unitSelf:GetInventory(true)
-        for slot = 1, 12, 1 do
-            local curItem = inventory[slot]
-            if curItem then
+	if bUpdated then
+	--only update if we need to
+		if core.itemSteamboots and  core.itemHellflower and core.itemSheepstick then
+			return
+		end
+		 
+		local inventory = core.unitSelf:GetInventory(true)
+		for slot = 1, 12, 1 do
+			local curItem = inventory[slot]
+			if curItem then
 				if core.itemSteamboots == nill and curItem:GetName() == "Item_Steamboots" then
 					core.itemSteamboots = core.WrapInTable(curItem)
-                end
-            end
-        end
-    end
+				end
+			end
+		end
+	end
 end
 
 object.FindItemsOld = core.FindItems
@@ -213,19 +213,19 @@ function object:oncombateventOverride(EventData)
 	local nAddBonus = 0
 	
 	if EventData.Type == "Ability" then
-        if EventData.InflictorName == "Ability_Grinex1" then
-            nAddBonus = nAddBonus + self.nStepUse
+		if EventData.InflictorName == "Ability_Grinex1" then
+			nAddBonus = nAddBonus + self.nStepUse
 		elseif EventData.InflictorName == "Ability_Grinex2" then
 			nAddBonus = nAddBonus + self.nStalkUse
-        elseif EventData.InflictorName == "Ability_Grinex4" then
-            nAddBonus = nAddBonus + self.nAssaultUse
-        end
-    end
+		elseif EventData.InflictorName == "Ability_Grinex4" then
+			nAddBonus = nAddBonus + self.nAssaultUse
+		end
+	end
  
-    if nAddBonus > 0 then
-        core.DecayBonus(self)
-        core.nHarassBonus = core.nHarassBonus + nAddBonus
-    end
+	if nAddBonus > 0 then
+		core.DecayBonus(self)
+		core.nHarassBonus = core.nHarassBonus + nAddBonus
+	end
 end
 
 object.oncombateventOld = object.oncombatevent
@@ -237,32 +237,32 @@ object.oncombatevent = object.oncombateventOverride
 
 local function CustomHarassUtilityFnOverride(hero)
 	local nUtility = 0
-
-    if skills.abilStep:CanActivate() then
-        nUtility = nUtility + object.nStepUp
-    end
- 
-    if skills.abilStalk:CanActivate() then
-        nUtility = nUtility + object.nStalkUp
-    end
- 
-    if skills.abilAssault:CanActivate() then
-        nUtility = nUtility + object.nAssaultUp
-    end
+	
+	if skills.abilStep:CanActivate() then
+		nUtility = nUtility + object.nStepUp
+	end
+	
+	if skills.abilStalk:CanActivate() then
+		nUtility = nUtility + object.nStalkUp
+	end
+	
+	if skills.abilAssault:CanActivate() then
+		nUtility = nUtility + object.nAssaultUp
+	end
 
 	-- Use diiferent Utility values for each level of Nether Strike
 	local nStrikeLevel = skills.abilStrike:GetLevel()
 	if nStrikeLevel == 1 then
-        nUtility = nUtility + object.nStrike1Up
+		nUtility = nUtility + object.nStrike1Up
 	elseif nStrikeLevel == 2 then
-        nUtility = nUtility + object.nStrike2Up
+		nUtility = nUtility + object.nStrike2Up
 	elseif nStrikeLevel == 3 then
-        nUtility = nUtility + object.nStrike3Up
+		nUtility = nUtility + object.nStrike3Up
 	elseif nStrikeLevel == 4 then
-        nUtility = nUtility + object.nStrike4Up
+		nUtility = nUtility + object.nStrike4Up
 	end
 	
-    return nUtility
+	return nUtility
 end
 
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
@@ -419,24 +419,18 @@ end
 ---------------------------------------
 
 local function HarassHeroExecuteOverride(botBrain)
-    
-    local unitTarget = behaviorLib.heroTarget
-    if unitTarget == nil then
-        return object.harassExecuteOld(botBrain)
-    end
-    
-    local unitSelf = core.unitSelf
-    local vecMyPosition = unitSelf:GetPosition() 
-    local nAttackRange = core.GetAbsoluteAttackRangeToUnit(unitSelf, unitTarget)
-    local nMyExtraRange = core.GetExtraRange(unitSelf)
-    
-    local vecTargetPosition = unitTarget:GetPosition()
-    local nTargetExtraRange = core.GetExtraRange(unitTarget)
-    local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
-    
-    local nLastHarassUtility = behaviorLib.lastHarassUtil
-    local bCanSee = core.CanSeeUnit(botBrain, unitTarget)    
-    local bActionTaken = false
+	
+	local unitTarget = behaviorLib.heroTarget
+	if unitTarget == nil then
+		return object.harassExecuteOld(botBrain)
+	end
+	
+	local unitSelf = core.unitSelf
+	local vecMyPosition = unitSelf:GetPosition()
+	local vecTargetPosition = unitTarget:GetPosition()
+	local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
+	local nLastHarassUtility = behaviorLib.lastHarassUtil  
+	local bActionTaken = false
 	
 	-- Stop the bot from trying to harass heroes while dead
 	if not bActionTaken and not unitSelf:IsAlive() then
@@ -499,8 +493,8 @@ local function HarassHeroExecuteOverride(botBrain)
 	end
 
 	if not bActionTaken then
-        return object.harassExecuteOld(botBrain)
-    end 
+		return object.harassExecuteOld(botBrain)
+	end 
 end
 
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
@@ -548,9 +542,9 @@ local function HealAtWellOveride(botBrain)
 		end
 	end
  
-    if not bActionTaken then
-        return object.HealAtWellBehaviorOld(botBrain)
-    end
+	if not bActionTaken then
+		return object.HealAtWellBehaviorOld(botBrain)
+	end
 end
 
 object.HealAtWellBehaviorOld = behaviorLib.HealAtWellBehavior["Execute"]
