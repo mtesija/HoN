@@ -169,10 +169,10 @@ core.FindItems = funcFindItemsOverride
 ----------------------------------------
 --          OnThink Override          --
 ----------------------------------------
-
+--[[
 function object:onthinkOverride(tGameVariables)
     self:onthinkOld(tGameVariables)
---[[
+
 	local unitSelf = core.unitSelf
 	core.FindItems()
 	
@@ -197,12 +197,12 @@ function object:onthinkOverride(tGameVariables)
 			end
 		end
 	end
---]]
+
 end
 
 object.onthinkOld = object.onthink
 object.onthink = object.onthinkOverride
-
+--]]
 ----------------------------------------------
 --          OnCombatEvent Override          --
 ----------------------------------------------
@@ -439,7 +439,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	
 	-- Don't cast spells while the bot has the Nether Strike buff
 	if unitSelf:HasState("State_Grinex_Ability3") then
-        return object.harassExecuteOld(botBrain)
+		return object.harassExecuteOld(botBrain)
 	end
 	
 	-- Rift Stalk (Out of Shadow Step range)
@@ -529,8 +529,8 @@ behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteO
 -------------------------------------------------
 
 local function HealAtWellOveride(botBrain)
-    local bActionTaken = false
-    local abilStalk = skills.abilStalk
+	local bActionTaken = false
+	local abilStalk = skills.abilStalk
  
 	-- Use Rift Stalk on way to well
 	if abilStalk:CanActivate() then
