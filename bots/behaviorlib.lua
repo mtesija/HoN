@@ -1725,7 +1725,8 @@ tinsert(behaviorLib.tBehaviors, behaviorLib.HitBuildingBehavior)
 --
 
 -------- Global Constants & Variables --------
-behaviorLib.enemiesDeadUtilMul = 0.5
+behaviorLib.
+UtilMul = 0.5
 behaviorLib.pushingStrUtilMul = 0.3
 behaviorLib.nTeamPushUtilityMul = 0.3
 behaviorLib.nDPSPushWeight = 0.8
@@ -1733,25 +1734,19 @@ behaviorLib.pushingCap = 22
 
 -------- Helper Functions --------
 function behaviorLib.EnemiesDeadPushUtility(nEnemyTeam)
-	local bDebugEchos = false
 	local tEnemyHeroes = HoN.GetHeroes(nEnemyTeam)
-	local nTotalEnemyHeroes = 0
-	local nDeadEnemyHeroes = 0
+	local bHeroesAlive = false
 	for _, unitHero in pairs(tEnemyHeroes) do
-		nTotalEnemyHeroes = nTotalEnemyHeroes + 1
-		if not unitHero:IsAlive() then
-			nDeadEnemyHeroes = nDeadEnemyHeroes + 1
+		if unitHero:IsAlive() then
+			bHeroesAlive = true
+			break
 		end
 	end
 
 	local nUtility = 0
 
-	if nDeadEnemyHeroes > 0 then
-		nUtility = 100 * nDeadEnemyHeroes / (nTotalEnemyHeroes + 1)
-	end
-
-	if bDebugEchos then
-		BotEcho("Utility: "..nUtility.."enemiesDead: "..nDeadEnemyHeroes.."  totalEnemies: "..nTotalEnemyHeroes)
+	if not bHeroesAlive and core.NumberElements(tEnemyHeroes) > 0 then
+		nUtility = 100
 	end
 
 	return nUtility
