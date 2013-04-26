@@ -298,7 +298,6 @@ local function getClosestUnitDirectionFromTable(vecPosition, tUnitTable)
 	local vecBestPosition = nil
 	for _, unitTarget in pairs(tUnitTable) do
 		vecTargetPosition = unitTarget:GetPosition()
-		core.DrawXPosition(vecTargetPosition, "Yellow", 100)
 		nDistanceSq = Vector3.Distance2DSq(vecPosition, vecTargetPosition)
 		if nDistanceSq <= nBestDistanceSq and nDistanceSq ~= 0 then
 			vecBestPosition = vecTargetPosition
@@ -327,7 +326,6 @@ local function getStepDirection(botBrain, unitTarget)
 			if core.NumberElements(tLocalEnemyHeroes) > 1 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalEnemyHeroes)
 				if vecDirection then
-					core.DrawDebugArrow(vecTargetPosition, vecTargetPosition + vecDirection * 350, "Red")
 					bSuccess = true
 				end
 			end
@@ -339,7 +337,6 @@ local function getStepDirection(botBrain, unitTarget)
 			if core.NumberElements(tLocalAllyHeroes) > 0 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalAllyHeroes)
 				if vecDirection then
-					core.DrawDebugArrow(vecTargetPosition, vecTargetPosition + vecDirection * 350, "Red")
 					bSuccess = true
 				end
 			end
@@ -351,7 +348,6 @@ local function getStepDirection(botBrain, unitTarget)
 			if core.NumberElements(tLocalEnemyBuildings) > 0 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalEnemyBuildings)
 				if vecDirection then
-					core.DrawDebugArrow(vecTargetPosition, vecTargetPosition + vecDirection * 350, "Red")
 					bSuccess = true
 				end
 			end
@@ -363,7 +359,6 @@ local function getStepDirection(botBrain, unitTarget)
 			if core.NumberElements(tLocalAllyBuildings) > 0 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalAllyBuildings)
 				if vecDirection then
-					core.DrawDebugArrow(vecTargetPosition, vecTargetPosition + vecDirection * 350, "Red")
 					bSuccess = true
 				end
 			end
@@ -377,25 +372,19 @@ local function getStepDirection(botBrain, unitTarget)
 			if core.NumberElements(tLocalTrees) > 0 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalTrees)
 				if vecDirection then
-					core.DrawDebugArrow(vecTargetPosition, vecTargetPosition + vecDirection * 350, "Green")
 					bSuccess = true
 				end
 			end
 		end
 	end 
 
-	--[[ Check Cliffs
+	--[[ 
+	-- Check Cliffs
 	if not bSuccess then
-
-	
-	
-	
-	
-	
-	
-	
-	
-	
+		vecDirection = checkForCliffs(vecTargetPosition)
+		if vecDirection then
+			bSuccess = true
+		end
 	end
 	--]]
 	
@@ -405,7 +394,6 @@ local function getStepDirection(botBrain, unitTarget)
 		if unitAllyWell then
 			vecDirection = Vector3.Normalize(unitAllyWell:GetPosition() - vecTargetPosition)
 			if vecDirection then
-				core.DrawDebugArrow(vecTargetPosition, vecTargetPosition + vecDirection * 350, "Blue")
 				bSuccess = true
 			end
 		end
