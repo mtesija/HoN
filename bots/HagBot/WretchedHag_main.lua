@@ -75,11 +75,11 @@ behaviorLib.LateItems  = {"Item_Intelligence7", "Item_Morph"}
 
 -- Skillbuild table, 0=q, 1=w, 2=e, 3=r, 4=attri
 object.tSkills = {
-    1, 2, 2, 0, 2,
-    3, 2, 0, 0, 0, 
-    3, 1, 1, 1, 4,
-    3, 4, 4, 4, 4,
-    4, 4, 4, 4, 4
+	1, 2, 2, 0, 2,
+	3, 2, 0, 0, 0, 
+	3, 1, 1, 1, 4,
+	3, 4, 4, 4, 4,
+	4, 4, 4, 4, 4
 }
 
 -- Bonus agression points if a skill/item is available for use
@@ -143,8 +143,8 @@ end
 ------------------------------------------
 
 local function funcFindItemsOverride(botBrain)
-    local bUpdated = object.FindItemsOld(botBrain)
- 
+	local bUpdated = object.FindItemsOld(botBrain)
+
 	if core.itemSteamboots ~= nil and not core.itemSteamboots:IsValid() then
 		core.itemSteamboots = nil
 	end
@@ -163,20 +163,20 @@ local function funcFindItemsOverride(botBrain)
 			return
 		end
          
-        local inventory = core.unitSelf:GetInventory(true)
-        for slot = 1, 12, 1 do
-            local curItem = inventory[slot]
-            if curItem then
+		local inventory = core.unitSelf:GetInventory(true)
+		for slot = 1, 12, 1 do
+			local curItem = inventory[slot]
+			if curItem then
 				if core.itemSteamboots == nil and curItem:GetName() == "Item_Steamboots" then
 					core.itemSteamboots = core.WrapInTable(curItem)
 				elseif core.itemHellflower == nil and curItem:GetName() == "Item_Silence" then
 					core.itemHellflower = core.WrapInTable(curItem)
-                elseif core.itemSheepstick == nil and curItem:GetName() == "Item_Morph" then
-                    core.itemSheepstick = core.WrapInTable(curItem)
-                end
-            end
-        end
-    end
+				elseif core.itemSheepstick == nil and curItem:GetName() == "Item_Morph" then
+					core.itemSheepstick = core.WrapInTable(curItem)
+				end
+			end
+		end
+	end
 end
 
 object.FindItemsOld = core.FindItems
@@ -187,7 +187,7 @@ core.FindItems = funcFindItemsOverride
 ----------------------------------------
 --[[
 function object:onthinkOverride(tGameVariables)
-    self:onthinkOld(tGameVariables)
+	self:onthinkOld(tGameVariables)
 
 	core.FindItems()
 	-- Toggle Steamboots for more Health/Mana
@@ -516,8 +516,8 @@ local function HarassHeroExecuteOverride(botBrain)
 	end
 
 	if not bActionTaken then
-        return object.harassExecuteOld(botBrain)
-    end
+		return object.harassExecuteOld(botBrain)
+	end
 	
 	return bActionTaken
 end
@@ -531,12 +531,12 @@ behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 
 -- Find the angle in radians between two targets. Modified from St0l3n_ID's AngToTarget code
 local function getAngToPoint(vecOrigin, vecTarget)
-    local nDeltaY = vecTarget.y - vecOrigin.y
-    local nDeltaX = vecTarget.x - vecOrigin.x
- 
-    nAng = atan2(nDeltaY, nDeltaX)
+	local nDeltaY = vecTarget.y - vecOrigin.y
+	local nDeltaX = vecTarget.x - vecOrigin.x
 	
-    return nAng
+	nAng = atan2(nDeltaY, nDeltaX)
+	
+	return nAng
 end
 
 -- Find the point D such that the lenght of CD is equal to nRange
@@ -649,11 +649,11 @@ behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteO
 -------------------------------------------------
 
 local function HealAtWellOveride(botBrain)
-    local bSuccess = false
-    local abilBlink = skills.abilBlink
- 
-    -- Use blink on way to well
-    if abilBlink:CanActivate() then
+	local bSuccess = false
+	local abilBlink = skills.abilBlink
+	
+	-- Use blink on way to well
+	if abilBlink:CanActivate() then
 		local nRange = abilBlink:GetRange()
 		local vecAllyWell = core.allyWell:GetPosition()
 		local nDistToWellSq = Vector3.Distance2DSq(core.unitSelf:GetPosition(), vecAllyWell)
@@ -665,11 +665,11 @@ local function HealAtWellOveride(botBrain)
 				bSuccess = core.OrderAbilityPosition(botBrain, abilBlink, vecAllyWell)
 			end
 		end
-    end
- 
-    if not bSuccess then
-        return object.HealAtWellBehaviorOld(botBrain)
-    end
+	end
+	
+	if not bSuccess then
+		return object.HealAtWellBehaviorOld(botBrain)
+	end
 end
 
 object.HealAtWellBehaviorOld = behaviorLib.HealAtWellBehavior["Execute"]
