@@ -545,14 +545,15 @@ end
 --    \ /
 --     C
 -- Where A is the previous node, B is the current node, and C is the Bots position
-local function bestPointOnPath(vecA, vecB, nRange)
+local function bestPointOnPath(vecA, vecB, nRange, bIgnoreZAxis)
+	if bIgnoreZAxis then
+		vecA.z = 0
+		vecB.z = 0
+		vecC.z = 0
+	end
+	
 	local vecResult = nil
 	local vecC = core.unitSelf:GetPosition()
-	
-	vecA.z = 0
-	vecB.z = 0
-	vecC.z = 0
-	
 	local vecAC = vecC - vecA
 	local nLengthAC = Vector3.Length(vecAC)
 	
@@ -602,7 +603,7 @@ local function getBlinkRetreatLocation()
 				if nIndex == 1 then
 					vecBlinkPosition = vecNodePosition
 				else
-					vecBlinkPosition = bestPointOnPath(vecPreviousNodePosition, vecNodePosition, nBlinkRange)
+					vecBlinkPosition = bestPointOnPath(vecPreviousNodePosition, vecNodePosition, nBlinkRange, true)
 				end
 
 				break
