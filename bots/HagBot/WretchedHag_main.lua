@@ -51,9 +51,9 @@ runfile "bots/behaviorLib.lua"
 local core, eventsLib, behaviorLib, metadata, skills = object.core, object.eventsLib, object.behaviorLib, object.metadata, object.skills
 
 local print, ipairs, pairs, string, table, next, type, tinsert, tremove, tsort, format, tostring, tonumber, strfind, strsub
-    = _G.print, _G.ipairs, _G.pairs, _G.string, _G.table, _G.next, _G.type, _G.table.insert, _G.table.remove, _G.table.sort, _G.string.format, _G.tostring, _G.tonumber, _G.string.find, _G.string.sub
+	= _G.print, _G.ipairs, _G.pairs, _G.string, _G.table, _G.next, _G.type, _G.table.insert, _G.table.remove, _G.table.sort, _G.string.format, _G.tostring, _G.tonumber, _G.string.find, _G.string.sub
 local ceil, floor, pi, tan, atan, atan2, abs, cos, sin, acos, asin, max, random
-    = _G.math.ceil, _G.math.floor, _G.math.pi, _G.math.tan, _G.math.atan, _G.math.atan2, _G.math.abs, _G.math.cos, _G.math.sin, _G.math.acos, _G.math.asin, _G.math.max, _G.math.random
+	= _G.math.ceil, _G.math.floor, _G.math.pi, _G.math.tan, _G.math.atan, _G.math.atan2, _G.math.abs, _G.math.cos, _G.math.sin, _G.math.acos, _G.math.asin, _G.math.max, _G.math.random
 
 local BotEcho, VerboseLog, BotLog = core.BotEcho, core.VerboseLog, core.BotLog
 local Clamp = core.Clamp
@@ -189,7 +189,6 @@ core.FindItems = funcFindItemsOverride
 function object:onthinkOverride(tGameVariables)
 	self:onthinkOld(tGameVariables)
 
-	core.FindItems()
 	-- Toggle Steamboots for more Health/Mana
 	local itemSteamboots = core.itemSteamboots
 	if itemSteamboots and itemSteamboots:CanActivate() then
@@ -228,7 +227,10 @@ function object:oncombateventOverride(EventData)
 		if EventData.InflictorName == "Ability_BabaYaga1" then
 			nAddBonus = nAddBonus + self.nHauntUse
 		elseif EventData.InflictorName == "Ability_BabaYaga2" then
-			nAddBonus = nAddBonus + self.nBlinkUse
+			local sCurrentBehavior = core.GetCurrentBehaviorName(self)
+			if sCurrentBehavior ~= "RetreatFromThreat" and sCurrentBehavior ~= "HealAtWell" then
+				nAddBonus = nAddBonus + self.nBlinkUse
+			end
 		elseif EventData.InflictorName == "Ability_BabaYaga3" then
 			nAddBonus = nAddBonus + self.nScreamUse
 		elseif EventData.InflictorName == "Ability_BabaYaga4" then
@@ -414,6 +416,9 @@ local function HarassHeroExecuteOverride(botBrain)
 
 	local vecTargetPosition = unitTarget:GetPosition()
 	local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
+	local nTargetHealthPercent = unitTarget:GetHealthPercent()
+	local bCanSeeTarget = core.CanSeeUnit(botBrain, unitTarget)
+	local bTargetDisabled = unitTarget:IsStunned() or unitTarget:IsSilenced()
 
 	local nLastHarassUtility = behaviorLib.lastHarassUtil
 	local bActionTaken = false
@@ -422,23 +427,33 @@ local function HarassHeroExecuteOverride(botBrain)
 	if not bActionTaken and not unitSelf:IsAlive() then
 		bActionTaken = true
 	end
+	
+	-- Hellflower
+	if not bActionTaken and not bTargetDisabled and bCanSeeTargetbCanSeeTarget then
+		local itemHellflower = core.itemHellflower
+		if itemHellflower and itemHellflower:CanActivate() and nLastHarassUtility > object.nHellflowerThreshold then
+			local nRange = itemHellflower:GetRange()
+			if nTargetDistanceSq < (nRange * nRange) then
+				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHellflower, unitTarget)
+			end
+		end
+	end
 
 	-- Blast
 	if not bActionTaken then
 		local abilBlast = skills.abilBlast
 		if abilBlast:CanActivate() and nLastHarassUtility > object.nBlastThreshold then
 			-- Hag Ult hits 700 Range at 33 degrees
-			local vecDirection = getConeTarget(core.localUnits["EnemyHeroes"], 700, 33, 2)
-			-- Cast towards group center (only if there are 2 or more heroes)
+			local nRange = abilBlast:GetRange()
+			local vecDirection = getConeTarget(core.localUnits["EnemyHeroes"], nRange, 33, 2)
 			if vecDirection then
+				-- Cast towards group center (only if there are 2 or more heroes)
 				bActionTaken = core.OrderAbilityPosition(botBrain, abilBlast, vecMyPosition + vecDirection)
-			-- Otherwise cast on target
-			else
-				if unitTarget:GetHealthPercent() > .375 then
-					local nRange = abilBlast:GetRange() - 75
-					if nTargetDistanceSq < (nRange * nRange) and nTargetDistanceSq > (200 * 200) then
-						bActionTaken = core.OrderAbilityEntity(botBrain, abilBlast, unitTarget)
-					end
+			elseif nTargetHealthPercent > .375 then
+				-- Otherwise cast on target
+				nRange = nRange - 75
+				if nTargetDistanceSq < (nRange * nRange) and nTargetDistanceSq > (200 * 200) then
+					bActionTaken = core.OrderAbilityEntity(botBrain, abilBlast, unitTarget)
 				end
 			end
 		end	
@@ -447,7 +462,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Haunt
 	if not bActionTaken then
 		local abilHaunt = skills.abilHaunt
-		if abilHaunt:CanActivate() and unitTarget:GetHealthPercent() > .125 and nLastHarassUtility > object.nHauntThreshold then
+		if abilHaunt:CanActivate() and bCanSeeTarget and nTargetHealthPercent > .125 and nLastHarassUtility > object.nHauntThreshold then
 			local nRange = abilHaunt:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderAbilityEntity(botBrain, abilHaunt, unitTarget)
@@ -456,16 +471,12 @@ local function HarassHeroExecuteOverride(botBrain)
 	end
 	
 	-- Sheepstick
-	if not bActionTaken then
-		local bTargetDisabled = unitTarget:IsStunned() or unitTarget:IsSilenced()
-		if not bTargetDisabled then
-			core.FindItems()
-			local itemSheepstick = core.itemSheepstick
-			if itemSheepstick and itemSheepstick:CanActivate() and nLastHarassUtility > object.nSheepstickThreshold then
-				local nRange = itemSheepstick:GetRange()
-				if nTargetDistanceSq < (nRange * nRange) then
-					bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
-				end
+	if not bActionTaken and not bTargetDisabled and bCanSeeTarget then
+		local itemSheepstick = core.itemSheepstick
+		if itemSheepstick and itemSheepstick:CanActivate() and nLastHarassUtility > object.nSheepstickThreshold then
+			local nRange = itemSheepstick:GetRange()
+			if nTargetDistanceSq < (nRange * nRange) then
+				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
 			end
 		end
 	end
@@ -473,32 +484,16 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Blink
 	if not bActionTaken then
 		local abilBlink = skills.abilBlink
-		local abilScream = skills.abilScream
-		if abilBlink:CanActivate() and abilScream:GetLevel() > 0 and nLastHarassUtility > object.nBlinkThreshold and (unitSelf:GetManaPercent() > .35 or unitTarget:GetHealthPercent() < .15) then
+		if abilBlink:CanActivate() and unitSelf:GetLevel() > 1 and nLastHarassUtility > object.nBlinkThreshold and (unitSelf:GetManaPercent() > .35 or nTargetHealthPercent < .15) then
 			local nRange = abilBlink:GetRange() + 50
 			if nTargetDistanceSq < (nRange * nRange) and nTargetDistanceSq > (415 * 415) then 
 				local unitEnemyWell = core.enemyWell
-				-- If possible blink behind the enemy (where behind is defined as the direction from the target to the enemy well)
 				if unitEnemyWell then
+					-- If possible blink behind the enemy (where behind is defined as the direction from the target to the enemy well)
 					local vecTargetPointToWell = Vector3.Normalize(unitEnemyWell:GetPosition() - vecTargetPosition)
 					if vecTargetPointToWell then
 						bActionTaken = core.OrderAbilityPosition(botBrain, abilBlink, vecTargetPosition + (vecTargetPointToWell * 150))
 					end
-				end
-			end
-		end
-	end
-	
-	-- Hellflower
-	if not bActionTaken then
-		local bTargetDisabled = unitTarget:IsStunned() or unitTarget:IsSilenced()
-		if not bTargetDisabled then
-			core.FindItems()
-			local itemHellflower = core.itemHellflower
-			if itemHellflower and itemHellflower:CanActivate() and nLastHarassUtility > object.nHellflowerThreshold then
-				local nRange = itemHellflower:GetRange()
-				if nTargetDistanceSq < (nRange * nRange) then
-					bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHellflower, unitTarget)
 				end
 			end
 		end
@@ -700,8 +695,7 @@ local function AbilityPush(botBrain)
 			if vecCenter then
 				local vecCenterDistanceSq = Vector3.Distance2DSq(unitSelf:GetPosition(), vecCenter)
 				if vecCenterDistanceSq then
-					local nRadius = screamRadius()
-					if vecCenterDistanceSq < ((nRadius - 45) * (nRadius - 45)) then
+					if vecCenterDistanceSq < (40 * 40) then
 						bSuccess = core.OrderAbility(botBrain, abilScream)
 					else
 						bSuccess = core.OrderMoveToPosClamp(botBrain, unitSelf, vecCenter)
