@@ -163,7 +163,7 @@ local function funcFindItemsOverride(botBrain)
 	
 	if bUpdated then
 		--only update if we need to
-		if core.itemSteamboots and  core.itemHellflower and core.itemSheepstick then
+		if core.itemSteamboots and  core.itemHellflower and core.itemSheepstick and core.itemSotM then
 			return
 		end
          
