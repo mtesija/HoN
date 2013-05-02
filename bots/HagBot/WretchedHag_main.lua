@@ -157,6 +157,10 @@ local function funcFindItemsOverride(botBrain)
 		core.itemSheepstick = nil
 	end
 	 
+	if core.itemSotM ~= nil and not core.itemSotM:IsValid() then
+		core.itemSotM = nil
+	end
+	
 	if bUpdated then
 		--only update if we need to
 		if core.itemSteamboots and  core.itemHellflower and core.itemSheepstick then
@@ -173,6 +177,8 @@ local function funcFindItemsOverride(botBrain)
 					core.itemHellflower = core.WrapInTable(curItem)
 				elseif core.itemSheepstick == nil and curItem:GetName() == "Item_Morph" then
 					core.itemSheepstick = core.WrapInTable(curItem)
+				elseif core.itemSotM == nil and curItem:GetName() == "Item_Intelligence7" then
+					core.itemSotM = core.WrapInTable(curItem)
 				end
 			end
 		end
@@ -286,6 +292,48 @@ end
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
 
 -----------------------------------
+--          Haunt Logic          --
+-----------------------------------
+
+-- Returns the magic damage Haunt will do
+local function hauntDamage()
+	local nHauntLevel = skills.abilHaunt:GetLevel()
+	
+	if nHauntLevel == 1 then
+		return 100
+	elseif nHauntLevel == 2 then
+		return 170
+	elseif nHauntLevel == 3 then
+		return 270
+	elseif nHauntLevel == 4 then
+		return 350
+	end
+
+	return nil
+end
+
+------------------------------------
+--          Scream Logic          --
+------------------------------------
+
+-- Returns the radius of Scream
+local function screamRadius()
+	local nSkillLevel = skills.abilScream:GetLevel()
+	
+	if nSkillLevel == 1 then
+		return 425
+	elseif nSkillLevel == 2 then
+		return 450
+	elseif nSkillLevel == 3 then
+		return 475
+	elseif nSkillLevel == 4 then
+		return 500
+	end
+
+	return nil
+end
+
+-----------------------------------
 --          Blast Logic          --
 -----------------------------------
 
@@ -364,13 +412,9 @@ local function getConeTarget(tLocalTargets, nRange, nDegrees, nMinCount)
 			local nBestGroupSize = #tBestGroup
 			
 			if nBestGroupSize >= nMinCount then
-				local nSumAngles = 0
-				for _, nAngle in pairs(tBestGroup) do
-					nSumAngles = nSumAngles + nAngle
-				end
+				tsort(tBestGroup)
+				local nAvgAngle = ((tBestGroup[1] + tBestGroup[nBestGroupSize]) / 2) * 0.01745329251 -- That number is pi / 180
 
-				local nAvgAngle = (nSumAngles / nBestGroupSize) * 0.01745329251 -- That number is pi / 180
-		
 				return Vector3.Create(cos(nAvgAngle), sin(nAvgAngle)) * 500
 			end
 		end
@@ -379,22 +423,26 @@ local function getConeTarget(tLocalTargets, nRange, nDegrees, nMinCount)
 	return nil
 end
 
-------------------------------------
---          Scream Logic          --
-------------------------------------
-
--- Returns the radius of Scream
-local function screamRadius()
-	local nSkillLevel = skills.abilScream:GetLevel()
-	
-	if nSkillLevel == 1 then
-		return 425
-	elseif nSkillLevel == 2 then
-		return 450
-	elseif nSkillLevel == 3 then
-		return 475
-	elseif nSkillLevel == 4 then
-		return 500
+-- Returns the magic damage that Hag Ult will do
+local function blastDamage()
+	local itemSotM = core.itemSotM
+	local nBlastLevel = skills.abilBlast:GetLevel()
+	if itemSotM then
+		if nBlastLevel == 1 then
+			return 340 + hauntDamage()
+		elseif nBlastLevel == 2 then
+			return 530 + hauntDamage()
+		elseif nBlastLevel == 3 then
+			return 725 + hauntDamage()
+		end	
+	else
+		if nBlastLevel == 1 then
+			return 290 + hauntDamage()
+		elseif nBlastLevel == 2 then
+			return 430 + hauntDamage()
+		elseif nBlastLevel == 3 then
+			return 600 + hauntDamage()
+		end	
 	end
 
 	return nil
@@ -416,9 +464,9 @@ local function HarassHeroExecuteOverride(botBrain)
 
 	local vecTargetPosition = unitTarget:GetPosition()
 	local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
-	local nTargetHealthPercent = unitTarget:GetHealthPercent()
 	local bCanSeeTarget = core.CanSeeUnit(botBrain, unitTarget)
 	local bTargetDisabled = unitTarget:IsStunned() or unitTarget:IsSilenced()
+	local nTargetMagicEHP = unitTarget:GetHealth() / (1 - unitTarget:GetMagicResistance())
 
 	local nLastHarassUtility = behaviorLib.lastHarassUtil
 	local bActionTaken = false
@@ -429,9 +477,9 @@ local function HarassHeroExecuteOverride(botBrain)
 	end
 	
 	-- Hellflower
-	if not bActionTaken and not bTargetDisabled and bCanSeeTargetbCanSeeTarget then
+	if not bActionTaken then
 		local itemHellflower = core.itemHellflower
-		if itemHellflower and itemHellflower:CanActivate() and nLastHarassUtility > object.nHellflowerThreshold then
+		if itemHellflower and itemHellflower:CanActivate() and not bTargetDisabled and bCanSeeTarget and nLastHarassUtility > object.nHellflowerThreshold then
 			local nRange = itemHellflower:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHellflower, unitTarget)
@@ -449,7 +497,7 @@ local function HarassHeroExecuteOverride(botBrain)
 			if vecDirection then
 				-- Cast towards group center (only if there are 2 or more heroes)
 				bActionTaken = core.OrderAbilityPosition(botBrain, abilBlast, vecMyPosition + vecDirection)
-			elseif nTargetHealthPercent > .375 then
+			elseif nTargetMagicEHP > blastDamage() then
 				-- Otherwise cast on target
 				nRange = nRange - 75
 				if nTargetDistanceSq < (nRange * nRange) and nTargetDistanceSq > (200 * 200) then
@@ -462,7 +510,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Haunt
 	if not bActionTaken then
 		local abilHaunt = skills.abilHaunt
-		if abilHaunt:CanActivate() and bCanSeeTarget and nTargetHealthPercent > .125 and nLastHarassUtility > object.nHauntThreshold then
+		if abilHaunt:CanActivate() and bCanSeeTarget and nTargetMagicEHP > hauntDamage() and nLastHarassUtility > object.nHauntThreshold then
 			local nRange = abilHaunt:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderAbilityEntity(botBrain, abilHaunt, unitTarget)
@@ -471,9 +519,9 @@ local function HarassHeroExecuteOverride(botBrain)
 	end
 	
 	-- Sheepstick
-	if not bActionTaken and not bTargetDisabled and bCanSeeTarget then
+	if not bActionTaken then
 		local itemSheepstick = core.itemSheepstick
-		if itemSheepstick and itemSheepstick:CanActivate() and nLastHarassUtility > object.nSheepstickThreshold then
+		if itemSheepstick and itemSheepstick:CanActivate() and not bTargetDisabled and bCanSeeTarget and nLastHarassUtility > object.nSheepstickThreshold then
 			local nRange = itemSheepstick:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
@@ -541,14 +589,15 @@ end
 --     C
 -- Where A is the previous node, B is the current node, and C is the Bots position
 local function bestPointOnPath(vecA, vecB, nRange, bIgnoreZAxis)
+	local vecResult = nil
+	local vecC = core.unitSelf:GetPosition()
+
 	if bIgnoreZAxis then
 		vecA.z = 0
 		vecB.z = 0
 		vecC.z = 0
 	end
 	
-	local vecResult = nil
-	local vecC = core.unitSelf:GetPosition()
 	local vecAC = vecC - vecA
 	local nLengthAC = Vector3.Length(vecAC)
 	
@@ -695,10 +744,10 @@ local function AbilityPush(botBrain)
 			if vecCenter then
 				local vecCenterDistanceSq = Vector3.Distance2DSq(unitSelf:GetPosition(), vecCenter)
 				if vecCenterDistanceSq then
-					if vecCenterDistanceSq < (40 * 40) then
+					if vecCenterDistanceSq < (90 * 90) then
 						bSuccess = core.OrderAbility(botBrain, abilScream)
 					else
-						bSuccess = core.OrderMoveToPosClamp(botBrain, unitSelf, vecCenter)
+						bSuccess = core.OrderMoveToPos(botBrain, unitSelf, vecCenter)
 					end
 				end
 			end
