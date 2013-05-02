@@ -429,19 +429,19 @@ local function blastDamage()
 	local nBlastLevel = skills.abilBlast:GetLevel()
 	if itemSotM then
 		if nBlastLevel == 1 then
-			return 340 + hauntDamage()
+			return 340
 		elseif nBlastLevel == 2 then
-			return 530 + hauntDamage()
+			return 530
 		elseif nBlastLevel == 3 then
-			return 725 + hauntDamage()
+			return 725
 		end	
 	else
 		if nBlastLevel == 1 then
-			return 290 + hauntDamage()
+			return 290
 		elseif nBlastLevel == 2 then
-			return 430 + hauntDamage()
+			return 430
 		elseif nBlastLevel == 3 then
-			return 600 + hauntDamage()
+			return 600
 		end	
 	end
 
