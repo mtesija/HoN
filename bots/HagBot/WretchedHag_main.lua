@@ -145,10 +145,6 @@ end
 local function funcFindItemsOverride(botBrain)
 	local bUpdated = object.FindItemsOld(botBrain)
 
-	if core.itemSteamboots ~= nil and not core.itemSteamboots:IsValid() then
-		core.itemSteamboots = nil
-	end
-
 	if core.itemHellflower ~= nil and not core.itemHellflower:IsValid() then
 		core.itemHellflower = nil
 	end
@@ -163,7 +159,7 @@ local function funcFindItemsOverride(botBrain)
 	
 	if bUpdated then
 		--only update if we need to
-		if core.itemSteamboots and  core.itemHellflower and core.itemSheepstick and core.itemSotM then
+		if  core.itemHellflower and core.itemSheepstick and core.itemSotM then
 			return
 		end
          
@@ -171,9 +167,7 @@ local function funcFindItemsOverride(botBrain)
 		for slot = 1, 12, 1 do
 			local curItem = inventory[slot]
 			if curItem then
-				if core.itemSteamboots == nil and curItem:GetName() == "Item_Steamboots" then
-					core.itemSteamboots = core.WrapInTable(curItem)
-				elseif core.itemHellflower == nil and curItem:GetName() == "Item_Silence" then
+				if core.itemHellflower == nil and curItem:GetName() == "Item_Silence" then
 					core.itemHellflower = core.WrapInTable(curItem)
 				elseif core.itemSheepstick == nil and curItem:GetName() == "Item_Morph" then
 					core.itemSheepstick = core.WrapInTable(curItem)
@@ -188,38 +182,6 @@ end
 object.FindItemsOld = core.FindItems
 core.FindItems = funcFindItemsOverride
 
-----------------------------------------
---          OnThink Override          --
-----------------------------------------
---[[
-function object:onthinkOverride(tGameVariables)
-	self:onthinkOld(tGameVariables)
-
-	-- Toggle Steamboots for more Health/Mana
-	local itemSteamboots = core.itemSteamboots
-	if itemSteamboots and itemSteamboots:CanActivate() then
-		local unitSelf = core.unitSelf
-		local sKey = itemSteamboots:GetActiveModifierKey()
-		-- Toggle away from STR if health is high enough
-		if sKey == "str" then
-			if unitSelf:GetHealthPercent() > .575 then
-				core.OrderItemClamp(self, unitSelf, itemSteamboots)
-			end
-		-- Always toggle past AGI
-		elseif sKey == "agi" then
-				core.OrderItemClamp(self, unitSelf, itemSteamboots)
-		-- Toggle away from INT if health gets too low
-		elseif sKey == "int" then
-			if unitSelf:GetHealthPercent() < .375 then
-				core.OrderItemClamp(self, unitSelf, itemSteamboots)
-			end
-		end
-	end
-end
-
-object.onthinkOld = object.onthink
-object.onthink = object.onthinkOverride
---]]
 ----------------------------------------------
 --          OnCombatEvent Override          --
 ----------------------------------------------
