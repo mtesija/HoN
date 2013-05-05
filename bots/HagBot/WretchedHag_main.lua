@@ -426,6 +426,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	
 	local unitSelf = core.unitSelf
 	local vecMyPosition = unitSelf:GetPosition() 
+	local nMyMana = unitSelf:GetMana()
 	local vecTargetPosition = unitTarget:GetPosition()
 	local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
 	local bTargetDisabled = unitTarget:IsStunned() or unitTarget:IsSilenced()
@@ -444,7 +445,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Hellflower
 	if not bActionTaken then
 		local itemHellflower = core.itemHellflower
-		if itemHellflower and itemHellflower:CanActivate() and not bTargetDisabled and bCanSeeTarget and nLastHarassUtility > object.nHellflowerThreshold then
+		if itemHellflower and itemHellflower:CanActivate() and (nMyMana - itemHellFlower:GetManaCost()) >= 60 and not bTargetDisabled and bCanSeeTarget and nLastHarassUtility > object.nHellflowerThreshold then
 			local nRange = itemHellflower:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHellflower, unitTarget)
@@ -455,7 +456,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Blast
 	if not bActionTaken then
 		local abilBlast = skills.abilBlast
-		if abilBlast:CanActivate() and nLastHarassUtility > object.nBlastThreshold then
+		if abilBlast:CanActivate() and (nMyMana - abilBlast:GetManaCost()) >= 60 and nLastHarassUtility > object.nBlastThreshold then
 			-- Hag Ult hits 700 Range at 33 degrees
 			local nRange = abilBlast:GetRange()
 			local vecDirection = getConeTarget(core.localUnits["EnemyHeroes"], nRange, 33, 2)
@@ -475,7 +476,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Haunt
 	if not bActionTaken then
 		local abilHaunt = skills.abilHaunt
-		if abilHaunt:CanActivate() and bCanSeeTarget and nTargetMagicEHP and nTargetMagicEHP > hauntDamage() and nLastHarassUtility > object.nHauntThreshold then
+		if abilHaunt:CanActivate() and (nMyMana - abilHaunt:GetManaCost()) >= 60  and bCanSeeTarget and nTargetMagicEHP and nTargetMagicEHP > hauntDamage() and nLastHarassUtility > object.nHauntThreshold then
 			local nRange = abilHaunt:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderAbilityEntity(botBrain, abilHaunt, unitTarget)
@@ -486,7 +487,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Sheepstick
 	if not bActionTaken then
 		local itemSheepstick = core.itemSheepstick
-		if itemSheepstick and itemSheepstick:CanActivate() and not bTargetDisabled and bCanSeeTarget and nLastHarassUtility > object.nSheepstickThreshold then
+		if itemSheepstick and itemSheepstick:CanActivate() and (nMyMana - itemSheepstick:GetManaCost()) >= 60  and not bTargetDisabled and bCanSeeTarget and nLastHarassUtility > object.nSheepstickThreshold then
 			local nRange = itemSheepstick:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemSheepstick, unitTarget)
@@ -497,7 +498,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Blink
 	if not bActionTaken then
 		local abilBlink = skills.abilBlink
-		if abilBlink:CanActivate() and unitSelf:GetLevel() > 1 and nLastHarassUtility > object.nBlinkThreshold and (unitSelf:GetManaPercent() > .35 or unitTarget:GetHealthPercent() < .15) then
+		if abilBlink:CanActivate() and unitSelf:GetLevel() > 1 and (nMyMana - abilBlink:GetManaCost()) >= 60 and nLastHarassUtility > object.nBlinkThreshold and (nMyMana > 200 or unitTarget:GetHealthPercent() < .15) then
 			local nRange = abilBlink:GetRange() + 50
 			if nTargetDistanceSq < (nRange * nRange) and nTargetDistanceSq > (415 * 415) then 
 				local unitEnemyWell = core.enemyWell
@@ -515,7 +516,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Scream
 	if not bActionTaken then
 		local abilScream = skills.abilScream
-		if abilScream:CanActivate() and nLastHarassUtility > object.nScreamThreshold then
+		if abilScream:CanActivate() and (nMyMana - abilScream:GetManaCost()) >= 60  and nLastHarassUtility > object.nScreamThreshold then
 			local nRadius = screamRadius() - 10
 			if nTargetDistanceSq < (nRadius * nRadius) then
 				bActionTaken = core.OrderAbility(botBrain, abilScream)
