@@ -421,17 +421,20 @@ local function HarassHeroExecuteOverride(botBrain)
 		return object.harassExecuteOld(botBrain)
 	end
 
-	local unitSelf = core.unitSelf
-	local vecMyPosition = unitSelf:GetPosition() 
-
-	local vecTargetPosition = unitTarget:GetPosition()
-	local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
-	local bCanSeeTarget = core.CanSeeUnit(botBrain, unitTarget)
-	local bTargetDisabled = unitTarget:IsStunned() or unitTarget:IsSilenced()
-	local nTargetMagicEHP = unitTarget:GetHealth() / (1 - unitTarget:GetMagicResistance())
-
 	local nLastHarassUtility = behaviorLib.lastHarassUtil
 	local bActionTaken = false
+	
+	local unitSelf = core.unitSelf
+	local vecMyPosition = unitSelf:GetPosition() 
+	local vecTargetPosition = unitTarget:GetPosition()
+	local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
+	local bTargetDisabled = unitTarget:IsStunned() or unitTarget:IsSilenced()
+	local bCanSeeTarget = core.CanSeeUnit(botBrain, unitTarget)
+	local nTargetMagicEHP = nil
+	
+	if bCanSeeTarget then
+		nTargetMagicEHP = unitTarget:GetHealth() / (1 - unitTarget:GetMagicResistance())
+	end
 
 	-- Stop the bot from trying to harass heroes while dead
 	if not bActionTaken and not unitSelf:IsAlive() then
@@ -459,7 +462,7 @@ local function HarassHeroExecuteOverride(botBrain)
 			if vecDirection then
 				-- Cast towards group center (only if there are 2 or more heroes)
 				bActionTaken = core.OrderAbilityPosition(botBrain, abilBlast, vecMyPosition + vecDirection)
-			elseif nTargetMagicEHP > blastDamage() then
+			elseif nTargetMagicEHP and nTargetMagicEHP > blastDamage() then
 				-- Otherwise cast on target
 				nRange = nRange - 75
 				if nTargetDistanceSq < (nRange * nRange) and nTargetDistanceSq > (200 * 200) then
@@ -472,7 +475,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Haunt
 	if not bActionTaken then
 		local abilHaunt = skills.abilHaunt
-		if abilHaunt:CanActivate() and bCanSeeTarget and nTargetMagicEHP > hauntDamage() and nLastHarassUtility > object.nHauntThreshold then
+		if abilHaunt:CanActivate() and bCanSeeTarget and nTargetMagicEHP and nTargetMagicEHP > hauntDamage() and nLastHarassUtility > object.nHauntThreshold then
 			local nRange = abilHaunt:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderAbilityEntity(botBrain, abilHaunt, unitTarget)
@@ -494,7 +497,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Blink
 	if not bActionTaken then
 		local abilBlink = skills.abilBlink
-		if abilBlink:CanActivate() and unitSelf:GetLevel() > 1 and nLastHarassUtility > object.nBlinkThreshold and (unitSelf:GetManaPercent() > .35 or nTargetHealthPercent < .15) then
+		if abilBlink:CanActivate() and unitSelf:GetLevel() > 1 and nLastHarassUtility > object.nBlinkThreshold and (unitSelf:GetManaPercent() > .35 or unitTarget:GetHealthPercent() < .15) then
 			local nRange = abilBlink:GetRange() + 50
 			if nTargetDistanceSq < (nRange * nRange) and nTargetDistanceSq > (415 * 415) then 
 				local unitEnemyWell = core.enemyWell
