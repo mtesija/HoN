@@ -342,46 +342,76 @@ local function getConeTarget(tLocalTargets, nRange, nDegrees, nMinCount)
 
 	if tLocalTargets and core.NumberElements(tLocalTargets) >= nMinCount then
 		local unitSelf = core.unitSelf
-		local tHeroesInRange = filterGroupRange(tLocalTargets, unitSelf:GetPosition(), nRange)
+		local vecMyPosition = unitSelf:GetPosition()
+		local tHeroesInRange = filterGroupRange(tLocalTargets, vecMyPosition, nRange)
 		if tHeroesInRange and #tHeroesInRange >= nMinCount then
 			-- Create a list of the directions to each hero in range
 			local tAngleOfHeroesInRange = {}
 			for _, unitEnemyHero in pairs(tHeroesInRange) do
-				tinsert(tAngleOfHeroesInRange, getAngToTarget(unitSelf, unitEnemyHero))
-			end
+				local vecEnemyPosition = unitEnemyHero:GetPosition()
+				local vecDirection = Vector3.Normalize(vecEnemyPosition - vecMyPosition)
+				vecDirection = core.RotateVec2DRad(vecDirection, pi / 2)
 			
+				local nHighAngle = getAngToTarget(vecMyPosition, vecEnemyPosition + vecDirection * 100)
+				local nMidAngle = getAngToTarget(vecMyPosition, vecEnemyPosition)
+				local nLowAngle = getAngToTarget(vecMyPosition, vecEnemyPosition - vecDirection * 100)
+				
+				tinsert(tAngleOfHeroesInRange, {nHighAngle, nMidAngle, nLowAngle})
+			end
+
 			local tBestGroup = {}
 			local tCurrentGroup = {}
-			-- For each hero count the number of heroes that are within 33 degrees counter-clockwise
-			for _, nStartAngle in pairs(tAngleOfHeroesInRange) do
-				for _, nEndAngle in pairs(tAngleOfHeroesInRange) do
-					-- Hag Ult hits 33 degrees in front of the hero
-					if nEndAngle - nStartAngle <= nDegrees and nEndAngle - nStartAngle >= 0 then
-						tinsert(tCurrentGroup, nEndAngle)
-					-- Account for when the start angle is in the range 327 to 360 and the end angle is in the range 0 to 32
-					elseif nEndAngle - nStartAngle <= (nDegrees - 360) and nEndAngle - nStartAngle >= -360 then
-						tinsert(tCurrentGroup, nEndAngle + 360)
-					end
+			for _, tStartAngles in pairs(tAngleOfHeroesInRange) do
+				local nStartAngle = tStartAngles[1]
+				if nStartAngle >= 270 then
+					-- Avoid doing calculations near the break in numbers
+					nStartAngle = nStartAngle - 360
 				end
 				
+				local nEndAngle = nStartAngle + nDegrees
+				for _, tAngles in pairs(tAngleOfHeroesInRange) do
+					local nHighAngle = tAngles[1]
+					local nMidAngle = tAngles[2]
+					local nLowAngle = tAngles[3]
+					if nStartAngle < 90 or nStartAngle >= 270 then
+						-- Avoid doing calculations near the break in numbers
+						if nHighAngle > 180 then
+							nHighAngle = nHighAngle - 360
+						end
+						
+						if nMidAngle > 180 then
+							nMidAngle = nMidAngle - 360
+						end
+						
+						if nLowAngle > 180 then
+							nLowAngle = nLowAngle - 360
+						end
+					end
+					
+					if (nHighAngle >= nStartAngle and nLowAngle <= nStartAngle) or (nHighAngle >= nEndAngle and nLowAngle <= nEndAngle) then
+						tinsert(tCurrentGroup, nMidAngle)
+					end
+				end
+
 				if #tCurrentGroup > #tBestGroup then
 					tBestGroup = tCurrentGroup
 				end
-				
+
 				tCurrentGroup = {}
 			end
-			
+
 			local nBestGroupSize = #tBestGroup
 			
 			if nBestGroupSize >= nMinCount then
 				tsort(tBestGroup)
-				local nAvgAngle = ((tBestGroup[1] + tBestGroup[nBestGroupSize]) / 2) * 0.01745329251 -- That number is pi / 180
+			
+				local nAvgAngle = (tBestGroup[1] + tBestGroup[nBestGroupSize]) / 2 * 0.01745329251 -- That number is pi / 180
 
 				return Vector3.Create(cos(nAvgAngle), sin(nAvgAngle)) * 500
 			end
 		end
 	end
-	
+
 	return nil
 end
 
@@ -459,7 +489,7 @@ local function HarassHeroExecuteOverride(botBrain)
 		if abilBlast:CanActivate() and (nMyMana - abilBlast:GetManaCost()) >= 60 and nLastHarassUtility > object.nBlastThreshold then
 			-- Hag Ult hits 700 Range at 33 degrees
 			local nRange = abilBlast:GetRange()
-			local vecDirection = getConeTarget(core.localUnits["EnemyHeroes"], nRange, 33, 2)
+			local vecDirection = getConeTarget(core.localUnits["EnemyHeroes"], nRange + 200, 20, 2)
 			if vecDirection then
 				-- Cast towards group center (only if there are 2 or more heroes)
 				bActionTaken = core.OrderAbilityPosition(botBrain, abilBlast, vecMyPosition + vecDirection)
