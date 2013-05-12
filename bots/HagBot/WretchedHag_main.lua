@@ -390,6 +390,8 @@ local function getConeTarget(tLocalTargets, nRange, nDegrees, nMinCount)
 					
 					if (nHighAngle >= nStartAngle and nLowAngle <= nStartAngle) or (nHighAngle >= nEndAngle and nLowAngle <= nEndAngle) then
 						tinsert(tCurrentGroup, nMidAngle)
+					elseif nStartAngle <= nMidAngle and nMidAngle <= nEndAngle then
+						tinsert(tCurrentGroup, nMidAngle)
 					end
 				end
 
