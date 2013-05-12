@@ -88,6 +88,7 @@ object.nCullUp = 12
 object.nBurningShadowsUp = 15
 object.nDeepShadowsUp = 8
 object.nReflectionUp = 24
+object.nLexTalionisUp = 10
 object.nCodexUp = 22
 object.nHellflowerUp = 14
 object.nSheepstickUp = 18
@@ -98,6 +99,7 @@ object.nCullUse = 16
 object.nBurningShadowsUse = 18
 object.nDeepShadowsUse = 10
 object.nReflectionUse = 35
+object.nLexTalionisUse = 12
 object.nCodexUse = 20
 object.nHellflowerUse = 17
 object.nSheepstickUse = 21
@@ -108,6 +110,7 @@ object.nCullThreshold = 22
 object.nBurningShadowsThreshold = 23
 object.nDeepShadowsThreshold = 21
 object.nReflectionThreshold = 28
+object.nLexTalionis = 22
 object.nCodexThreshold = 28
 object.nHellflowerThreshold = 25
 object.nSheepstickThreshold = 30
@@ -221,7 +224,9 @@ function object:oncombateventOverride(EventData)
 			nAddBonus = nAddBonus + self.nReflectionUse
 		end
 	elseif EventData.Type == "Item" then
-		if core.itemCodex ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemCodex:GetName() then
+		if core.itemLexTalionis ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemLexTalionis:GetName() then
+			nAddBonus = nAddBonus + self.nLexTalionisUse
+		elseif core.itemCodex ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemCodex:GetName() then
 			nAddBonus = nAddBonus + self.nCodexUse
 		elseif core.itemHellflower ~= nil and EventData.SourceUnit == core.unitSelf:GetUniqueID() and EventData.InflictorName == core.itemHellflower:GetName() then
 			nAddBonus = nAddBonus + self.nHellflowerUse
@@ -261,10 +266,14 @@ local function CustomHarassUtilityFnOverride(hero)
 	if skills.abilReflection:CanActivate() then
 		nUtility = nUtility + object.nReflectionUp
 	end
-	
+
+	if object.itemLexTalionis and object.itemLexTalionis:CanActivate() then
+		nUtility = nUtility + object.nLexTalionisUp
+	end
+
 	if object.itemCodex and object.itemCodex:CanActivate() then
 		nUtility = nUtility + object.nCodexUp
-	end 
+	end
 	
 	if object.itemHellflower and object.itemHellflower:CanActivate() then
 		nUtility = nUtility + object.nHellflowerUp
@@ -409,7 +418,7 @@ local function getDeepShadowsRetreatPosition()
 	local vecDeepShadowsPosition = nil
 	
 	if unitSelf.bIsMemoryUnit then
-		local vecMovementDirection = Vector3.Normalize(unitSelf.storredPosition - unitSelf.lastStoredPosition)
+		local vecMovementDirection = Vector3.Normalize(unitSelf.storedPosition - unitSelf.lastStoredPosition)
 		if vecMovementDirection then
 			vecDeepShadowsPosition = unitSelf:GetPosition() + vecMovementDirection * 350
 		end
@@ -511,6 +520,16 @@ local function HarassHeroExecuteOverride(botBrain)
 			else
 				-- If the bot has mana for a combo then use it
 				bActionTaken = core.OrderAbility(botBrain, abilReflection)
+			end
+		end
+	end
+
+	if not bActionTaken then
+		local itemLexTalionis = core.itemLexTalionis
+		if itemLexTalionis and itemLexTalionis:CanActivate() and bCanSeeTarget and nLastHarassUtility > object.nLexTalionisThreshold  then
+			local nRange = itemLexTalionis:GetRange()
+			if nTargetDistanceSq < (nRange * nRange) then
+				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemLexTalionis, unitTarget)
 			end
 		end
 	end
