@@ -118,6 +118,8 @@ behaviorLib.nCreepPushbackMul = 0.6
 behaviorLib.nTargetPositioningMul = 1.2
 behaviorLib.nTargetCriticalPositioningMul = 1
 
+object.tIllusions = {}
+
 ------------------------------
 --          Skills          --
 ------------------------------
@@ -271,6 +273,23 @@ end
 
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
 
+----------------------------------------
+--          OnThink Override          --
+----------------------------------------
+
+function object:onthinkOverride(tGameVariables)
+	self:onthinkOld(tGameVariables)
+
+	updateIllusions(self)
+	if behaviorLib.currentBehavior ~= "HarassHero" then
+		-- Don't move illusions if they are attacking something
+		moveIllusions(self, core.unitSelf:GetPosition())
+	end
+end
+
+object.onthinkOld = object.onthink
+object.onthink = object.onthinkOverride
+
 ------------------------------------
 --          Bottle Logic          --
 ------------------------------------
@@ -318,21 +337,39 @@ end
 --          Illusion Logic          --
 --------------------------------------
 
--- Order all illusions to attack the target
-local function funcIllusionHarass(botBrain, unitTarget)
+-- Returns a table of all Illusions that the bot controls
+local function updateIllusions(botBrain)
 	local playerSelf = core.unitSelf:GetOwnerPlayer()
 	local tAllyHeroes = HoN.GetHeroes(core.myTeam)
-	local tIllusions = {}
+	local object.tIllusions = {}
 	for nUID, unitHero in pairs(tAllyHeroes) do
 		if core.teamBotBrain.tAllyHeroes[nUID] == nil then
 			if unitHero:GetOwnerPlayer() == playerSelf then
-				tinsert(tIllusions, unitHero)
+				tinsert(object.tIllusions, unitHero)
 			end
 		end
 	end
 
-	if #tIllusions > 0 then
-		for _, unitIllusion in pairs(tIllusions) do
+	return
+end
+
+-- Order all illusions to move to a position
+local function moveIllusions(botBrain, vecPosition)
+	if #object.tIllusions > 0 then
+		for _, unitIllusion in pairs(object.tIllusions) do
+			if Vector3.Distance2DSq(unitIllusion:GetPosition(), vecPosition) > (100 * 100) then
+				core.OrderMoveToPos(self, unitIllusion, vecPosition)
+			end
+		end
+	end
+
+	return
+end
+
+-- Order all illusions to attack the target
+local function harassHeroIllusions(botBrain, unitTarget)
+	if #object.tIllusions > 0 then
+		for _, unitIllusion in pairs(object.tIllusions) do
 			core.OrderAttack(botBrain, unitIllusion, unitTarget)
 		end
 	end
@@ -448,7 +485,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	end
 	
 	-- Illusions
-	funcIllusionHarass(botBrain, unitTarget)
+	harassHeroIllusions(botBrain, unitTarget)
 
 	-- Don't cast spells or use items to break stealth from Reflection
 	if unitSelf:HasState("State_Fade_Ability4_Stealth") then
@@ -726,5 +763,370 @@ end
 
 object.TeamGroupBehaviorOld = behaviorLib.TeamGroupBehavior["Execute"]
 behaviorLib.TeamGroupBehavior["Execute"] = TeamGroupBehaviorOverride
+
+
+---------------------------------------------
+--          AttackCreeps Override          --
+---------------------------------------------
+
+-- Override to use logger's hatchet
+local function behaviorLib.AttackCreepsExecuteOverride(botBrain)
+	local bActionTaken = false
+	local unitSelf = core.unitSelf
+	local unitTarget = core.unitCreepTarget
+
+	-- The bot has no target/can not see the target
+	if not unitTarget or not core.CanSeeUnit(botBrain, unitTarget) then
+		return bActionTaken
+	end
+
+	local vecTargetPos = unitTarget:GetPosition()
+	local nDistSq = Vector3.Distance2DSq(unitSelf:GetPosition(), vecTargetPos)
+	local nAttackRangeSq = core.GetAbsoluteAttackRangeToUnit(unitSelf, unitTarget, true)
+
+	-- Attack creeps if they are in range
+	if not bActionTaken and nDistSq < nAttackRangeSq and unitSelf:IsAttackReady() then
+		--only attack when in nRange, so not to aggro towers/creeps until necessary, and move forward when attack is on cd
+		bActionTaken = core.OrderAttackClamp(botBrain, unitSelf, unitTarget)
+	end
+
+	-- Use Loggers Hatchet
+	if not bActionTaken then
+		local itemHatchet = core.itemHatchet
+		if itemHatchet and itemHatchet:CanActivate() and unitTarget:GetTeam() ~= unitSelf:GetTeam() and string.find(unitTarget:GetTypeName(), "Creep") and core.GetAttackSequenceProgress(unitSelf) ~= "windup" and nDistSq < 600 * 600 then
+			bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHatchet, unitTarget)
+		end
+	end
+
+	-- Move towards creeps if out of range
+	if not bAtionTaken then
+		local vecDesiredPos = core.AdjustMovementForTowerLogic(vecTargetPos)
+		if vecDesiredPos then
+			bActionTaken = core.OrderMoveToPosClamp(botBrain, unitSelf, vecDesiredPos, false)
+		end
+	end
+
+	return bActionTaken
+end
+
+behaviorLib.AttackCreepsBehavior["Execute"] = behaviorLib.AttackCreepsExecuteOverride
+
+-----------------------------------------------
+--          UseHealthRegen Override          --
+-----------------------------------------------
+--
+-- Utility: 0 to 40
+-- Based on missing health
+--
+-- Execute: 
+-- Use Runes of the Blight, Health Pot, or Bottle to heal
+-- Will only use Health Pot or Bottle if it is safe
+--
+
+-------- Global Constants & Variables --------
+behaviorLib.nBottleHealthUtility = 0
+behaviorLib.bUseBottleForHealth = true
+
+-------- Helper Functions --------
+local function behaviorLib.GetSafeDrinkDirection()
+	-- Returns vector to a safe direciton to retreat to drink if the bot is threatened
+	-- Returns nil if safe
+	local bDebugLines = true
+	local vecSafeDirection = nil
+	local vecSelfPos = core.unitSelf:GetPosition()
+	local tThreateningUnits = {}
+	for _, unitEnemy in pairs(core.localUnits["EnemyUnits"]) do
+		local nAbsRange = core.GetAbsoluteAttackRangeToUnit(unitEnemy, unitSelf)
+		local nDist = Vector3.Distance2D(vecSelfPos, unitEnemy:GetPosition())
+		if nDist < nAbsRange * 1.15 then
+			local unitPair = {}
+			unitPair[1] = unitEnemy
+			unitPair[2] = (nAbsRange * 1.15 - nDist)
+			tinsert(tThreateningUnits, unitPair)
+		end
+	end
+
+	local curTimeMS = HoN.GetGameTime()
+	if core.NumberElements(tThreateningUnits) > 0 or eventsLib.recentDotTime > curTimeMS or #eventsLib.incomingProjectiles["all"] > 0 then
+		-- Determine best "away from threat" vector
+		local vecAway = Vector3.Create()
+		for _, unitPair in pairs(tThreateningUnits) do
+			local unitAwayVec = Vector3.Normalize(vecSelfPos - unitPair[1]:GetPosition())
+			vecAway = vecAway + unitAwayVec * unitPair[2]
+
+			if bDebugLines then
+				core.DrawDebugArrow(unitPair[1]:GetPosition(), unitPair[1]:GetPosition() + unitAwayVec * unitPair[2], 'teal')
+			end
+		end
+
+		if core.NumberElements(tThreateningUnits) > 0 then
+			vecAway = Vector3.Normalize(vecAway)
+		end
+
+		-- Average vecAway with "retreat" vector
+		local vecRetreat = Vector3.Normalize(behaviorLib.PositionSelfBackUp() - vecSelfPos)
+		local vecSafeDirection = Vector3.Normalize(vecAway + vecRetreat)
+
+		if bDebugLines then
+			local nLineLen = 150
+			core.DrawDebugArrow(vecSelfPos, vecSelfPos + vecRetreat * nLineLen, 'blue')
+			core.DrawDebugArrow(vecSelfPos, vecSelfPos + vecAway * nLineLen, 'teal')
+			core.DrawDebugArrow(vecSelfPos, vecSelfPos + vecSafeDirection * nLineLen, 'white')
+			core.DrawXPosition(vecSelfPos + vecSafeDirection * core.moveVecMultiplier, 'blue')
+		end
+	end
+
+	return vecSafeDirection
+end
+
+local function behaviorLib.BottleHealthUtilFn(nHealthMissing)
+	-- Roughly 20+ when we are missing 195 hp
+	-- Function which crosses 20 at x=195 and 30 at x=230, convex down
+
+	local nHealAmount = 135
+	local nHealBuffer = 60
+	local nUtilityThreshold = 20
+
+	local vecPoint = Vector3.Create(nHealAmount + nHealBuffer, nUtilityThreshold)
+	local vecOrigin = Vector3.Create(100, -30)
+	return core.ATanFn(nHealthMissing, vecPoint, vecOrigin, 100)
+end
+
+-------- Behavior Functions --------
+local function behaviorLib.UseHealthRegenUtilityOverride(botBrain)
+	StartProfile("Init")
+	local bDebugLines = false
+
+	local nUtility = 0
+	local nHealthPotUtility = 0
+	local nBlightsUtility = 0
+	local nBottleUtility = 0
+
+	local unitSelf = core.unitSelf
+	local nHealthMissing = unitSelf:GetMaxHealth() - unitSelf:GetHealth()
+	local tInventory = unitSelf:GetInventory()
+	StopProfile()
+
+	StartProfile("Health pot")
+	local tHealthPots = core.InventoryContains(tInventory, "Item_HealthPotion")
+	if #tHealthPots > 0 and not unitSelf:HasState("State_HealthPotion") then
+		nHealthPotUtility = behaviorLib.HealthPotUtilFn(nHealthMissing)
+	end
+	StopProfile()
+
+	StartProfile("Runes")
+	local tBlights = core.InventoryContains(tInventory, "Item_RunesOfTheBlight")
+	if #tBlights > 0 and not unitSelf:HasState("State_RunesOfTheBlight") then
+		nBlightsUtility = behaviorLib.RunesOfTheBlightUtilFn(nHealthMissing)
+	end
+	StopProfile()
+
+	StartProfile("Bottle")
+	if behaviorLib.bUseBottleForHealth then
+		local itemBottle = core.itemBottle
+		if itemBottle and not unitSelf:HasState("State_Bottle") and itemBottle:GetActiveModifierKey() ~= "bottle_empty" then
+			nBottleUtility = behaviorLib.BottleHealthUtilFn(nHealthMissing)
+		end
+	end
+	StopProfile()
+
+	StartProfile("End")
+	nUtility = max(nHealthPotUtility, nBlightsUtility, nBottleUtility)
+	nUtility = Clamp(nUtility, 0, 100)
+
+	behaviorLib.nHealthPotUtility = nHealthPotUtility
+	behaviorLib.nBlightsUtility = nBlightsUtility
+	behaviorLib.nBottleHealthUtility = nBottleUtility
+
+	if bDebugLines then
+		local vecLaneForward = object.vecLaneForward
+		if vecLaneForward then
+			local vecPos = unitSelf:GetPosition()
+			local nHalfSafeTreeAngle = behaviorLib.safeTreeAngle / 2
+			local vec1 = core.RotateVec2D(-vecLaneForward, nHalfSafeTreeAngle)
+			local vec2 = core.RotateVec2D(-vecLaneForward, -nHalfSafeTreeAngle)
+			core.DrawDebugLine(vecPos, vecPos + vec1 * 2000, 'white')
+			core.DrawDebugLine(vecPos, vecPos + vec2 * 2000, 'white')
+			core.DrawDebugArrow(vecPos, vecPos + -vecLaneForward * 150, 'white')
+		end
+	end
+
+	if botBrain.bDebugUtility == true and nUtility ~= 0 then
+		BotEcho(format("  UseHealthRegenUtility: %g", nUtility))
+	end
+	StopProfile()
+
+	return nUtility
+end
+
+local function behaviorLib.UseHealthRegenExecuteOverride(botBrain)
+	local bDebugLines = false
+	local bActionTaken = false
+	local unitSelf = core.unitSelf
+	local vecSelfPos = unitSelf:GetPosition()
+	local tInventory = unitSelf:GetInventory()
+	local nMaxUtility = max(behaviorLib.nBlightsUtility, behaviorLib.nHealthPotUtility, behaviorLib.nBottleHealthUtility)
+
+	-- Use Runes to heal
+	if not bActionTaken and behaviorLib.nBlightsUtility == nMaxUtility then
+		local tBlights = core.InventoryContains(tInventory, "Item_RunesOfTheBlight")
+		if #tBlights > 0 and not unitSelf:HasState("State_RunesOfTheBlight") then
+			-- Get closest tree
+			local unitClosestTree = nil
+			local nClosestTreeDistSq = 9999 * 9999
+			local vecLaneForward = object.vecLaneForward
+			local vecLaneForwardNeg = -vecLaneForward
+			local funcRadToDeg = core.RadToDeg
+			local funcAngleBetween = core.AngleBetween
+			local nHalfSafeTreeAngle = behaviorLib.safeTreeAngle / 2
+
+			core.UpdateLocalTrees()
+			local tTrees = core.localTrees
+			for _, unitTree in pairs(tTrees) do
+				vecTreePosition = unitTree:GetPosition()
+				-- "Safe" trees are backwards
+				if not vecLaneForward or abs(funcRadToDeg(funcAngleBetween(vecTreePosition - vecSelfPos, vecLaneForwardNeg)) ) < nHalfSafeTreeAngle then
+					local nDistSq = Vector3.Distance2DSq(vecTreePosition, vecSelfPos)
+					if nDistSq < nClosestTreeDistSq then
+						unitClosestTree = unitTree
+						nClosestTreeDistSq = nDistSq
+						if bDebugLines then
+							core.DrawXPosition(vecTreePosition, 'yellow')
+						end
+					end
+				end
+			end
+
+			if unitClosestTree then
+				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, tBlights[1], unitClosestTree)
+			end
+		end
+	end
+
+	-- Use Health Potion to heal
+	if not bActionTaken and behaviorLib.nHealthPotUtility == nMaxUtility then
+		local tHealthPots = core.InventoryContains(tInventory, "Item_HealthPotion")
+		if #tHealthPots > 0 and not unitSelf:HasState("State_HealthPotion") then
+			local vecRetreatDirection = behaviorLib.GetSafeDrinkDirection()
+			-- Check if it is safe to drink
+			if vecRetreatDirection then
+				bActionTaken = core.OrderMoveToPosClamp(botBrain, unitSelf, vecSelfPos + vecRetreatDirection * core.moveVecMultiplier, false)
+			else
+				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, tHealthPots[1], unitSelf)
+			end
+		end
+	end
+
+	-- Use Bottle to heal
+	if not bActionTaken and behaviorLib.nBottleHealthUtility == nMaxUtility then
+		local itemBottle = core.itemBottle
+		if itemBottle and itemBottle:CanActivate() and not unitSelf:HasState("State_Bottle") and itemBottle:GetActiveModifierKey() ~= "bottle_empty" then
+			local vecRetreatDirection = behaviorLib.GetSafeDrinkDirection()
+			-- Check if it is safe to drink
+			if vecRetreatDirection then
+				bActionTaken = core.OrderMoveToPosClamp(botBrain, unitSelf, vecSelfPos + vecRetreatDirection * core.moveVecMultiplier, false)
+			else
+				bActionTaken = core.OrderItemClamp(botBrain, unitSelf, itemBottle)
+			end
+		end
+	end
+
+	return bActionTaken
+end
+
+behaviorLib.UseHealthRegenBehavior["Utility"] = behaviorLib.UseHealthRegenUtilityOverride
+behaviorLib.UseHealthRegenBehavior["Execute"] = behaviorLib.UseHealthRegenExecuteOverride
+
+------------------------------------
+--          UseManaRegen          --
+------------------------------------
+--
+-- Utility: 0 to 40
+-- Based on missing mana
+--
+-- Execute:
+-- Use Mana Pot or Bottle to restore mana
+-- Will only use them if it is safe
+--
+
+-------- Global Constants & Variables --------
+behaviorLib.nBottleManaUtility = 0
+behaviorLib.bUseBottleForMana = true
+
+-------- Helper Functions --------
+local function behaviorLib.BottleManaUtilFn(nManaMissing)
+	-- Roughly 20+ when we are missing 145 mana
+	-- Function which crosses 20 at x=145 and 30 at x=170, convex down
+
+	local nManaRegenAmount = 70
+	local nManaBuffer = 75
+	local nUtilityThreshold = 20
+
+	local vecPoint = Vector3.Create(nManaRegenAmount + nManaBuffer, nUtilityThreshold)
+	local vecOrigin = Vector3.Create(75, -30)
+	return core.ATanFn(nManaMissing, vecPoint, vecOrigin, 100)
+end
+
+-------- Behavior Functions --------
+local function behaviorLib.UseManaRegenUtility(botBrain)
+	StartProfile("Init")
+	local nUtility = 0
+	local nBottleUtility = 0
+
+	local unitSelf = core.unitSelf
+	local nManaMissing = unitSelf:GetMaxMana() - unitSelf:GetMana()
+	StopProfile()
+
+	StartProfile("Bottle")
+	if behaviorLib.bUseBottleForMana then
+		local itemBottle = core.itemBottle
+		if itemBottle and not unitSelf:HasState("State_Bottle") and itemBottle:GetActiveModifierKey() ~= "bottle_empty" then
+			nBottleUtility = behaviorLib.BottleManaUtilFn(nManaMissing)
+		end
+	end
+	StopProfile()
+
+	StartProfile("End")
+	nUtility = nBottleUtility
+	nUtility = Clamp(nUtility, 0, 100)
+
+	behaviorLib.nBottleManaUtility = nBottleUtility
+
+	if botBrain.bDebugUtility == true and nUtility ~= 0 then
+		BotEcho(format("  UseManaRegenUtility: %g", nUtility))
+	end
+	StopProfile()
+
+	return nUtility
+end
+
+local function behaviorLib.UseManaRegenExecute(botBrain)
+	local bActionTaken = false
+	local unitSelf = core.unitSelf
+	local vecSelfPos = unitSelf:GetPosition()
+	local tInventory = unitSelf:GetInventory()
+
+	-- Use Bottle to regen mana
+	if not bActionTaken  then
+		local itemBottle = core.itemBottle
+		if itemBottle and itemBottle:CanActivate() and not unitSelf:HasState("State_Bottle") and itemBottle:GetActiveModifierKey() ~= "bottle_empty" then
+			local vecRetreatDirection = behaviorLib.GetSafeDrinkDirection()
+			-- Check if it is safe to drink
+			if vecRetreatDirection then
+				bActionTaken = core.OrderMoveToPosClamp(botBrain, unitSelf, vecSelfPos + vecRetreatDirection * core.moveVecMultiplier, false)
+			else
+				bActionTaken = core.OrderItemClamp(botBrain, unitSelf, itemBottle)
+			end
+		end
+	end
+
+	return bActionTaken
+end
+
+behaviorLib.UseManaRegenBehavior = {}
+behaviorLib.UseManaRegenBehavior["Utility"] = behaviorLib.UseManaRegenUtility
+behaviorLib.UseManaRegenBehavior["Execute"] = behaviorLib.UseManaRegenExecute
+behaviorLib.UseManaRegenBehavior["Name"] = "UseManaRegen"
+tinsert(behaviorLib.tBehaviors, behaviorLib.UseManaRegenBehavior)
 
 BotEcho(object:GetName()..' finished loading Fayde_main')
