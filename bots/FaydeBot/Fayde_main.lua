@@ -341,7 +341,7 @@ end
 local function updateIllusions(botBrain)
 	local playerSelf = core.unitSelf:GetOwnerPlayer()
 	local tAllyHeroes = HoN.GetHeroes(core.myTeam)
-	local object.tIllusions = {}
+	object.tIllusions = {}
 	for nUID, unitHero in pairs(tAllyHeroes) do
 		if core.teamBotBrain.tAllyHeroes[nUID] == nil then
 			if unitHero:GetOwnerPlayer() == playerSelf then
@@ -576,7 +576,7 @@ local function HarassHeroExecuteOverride(botBrain)
 			if nTargetDistanceSq <= (250 * 250) then
 				-- If the enemy is in melee range, only use codex if we can't kill them with 2 or less auto attacks
 				local nTargetPhysicalEHP = unitTarget:GetHealth() / (1 - unitTarget:GetPhysicalResistance())
-				if nTargetPhysicalEHP > (core.GetFinalAttackDamageAverage(unitSelf) * 2)
+				if nTargetPhysicalEHP > (core.GetFinalAttackDamageAverage(unitSelf) * 2) then
 					bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemCodex, unitTarget)
 				end
 			else
@@ -770,7 +770,7 @@ behaviorLib.TeamGroupBehavior["Execute"] = TeamGroupBehaviorOverride
 ----------------------------------------------------
 
 -- Override to use logger's hatchet
-local function behaviorLib.AttackCreepsExecuteOverride(botBrain)
+local function attackCreepsExecuteOverride(botBrain)
 	local bActionTaken = false
 	local unitSelf = core.unitSelf
 	local unitTarget = core.unitCreepTarget
@@ -809,7 +809,7 @@ local function behaviorLib.AttackCreepsExecuteOverride(botBrain)
 	return bActionTaken
 end
 
-behaviorLib.AttackCreepsBehavior["Execute"] = behaviorLib.AttackCreepsExecuteOverride
+behaviorLib.AttackCreepsBehavior["Execute"] = attackCreepsExecuteOverride
 
 -----------------------------------------------
 --          UseHealthRegen Override          --
@@ -828,7 +828,7 @@ behaviorLib.nBottleHealthUtility = 0
 behaviorLib.bUseBottleForHealth = true
 
 -------- Helper Functions --------
-local function behaviorLib.GetSafeDrinkDirection()
+local function getSafeDrinkDirection()
 	-- Returns vector to a safe direciton to retreat to drink if the bot is threatened
 	-- Returns nil if safe
 	local bDebugLines = true
@@ -879,7 +879,7 @@ local function behaviorLib.GetSafeDrinkDirection()
 	return vecSafeDirection
 end
 
-local function behaviorLib.BottleHealthUtilFn(nHealthMissing)
+local function bottleHealthUtilFn(nHealthMissing)
 	-- Roughly 20+ when we are missing 195 hp
 	-- Function which crosses 20 at x=195 and 30 at x=230, convex down
 
@@ -893,7 +893,7 @@ local function behaviorLib.BottleHealthUtilFn(nHealthMissing)
 end
 
 -------- Behavior Functions --------
-local function behaviorLib.UseHealthRegenUtilityOverride(botBrain)
+local function useHealthRegenUtilityOverride(botBrain)
 	StartProfile("Init")
 	local bDebugLines = false
 
@@ -925,7 +925,7 @@ local function behaviorLib.UseHealthRegenUtilityOverride(botBrain)
 	if behaviorLib.bUseBottleForHealth then
 		local itemBottle = core.itemBottle
 		if itemBottle and not unitSelf:HasState("State_Bottle") and itemBottle:GetActiveModifierKey() ~= "bottle_empty" then
-			nBottleUtility = behaviorLib.BottleHealthUtilFn(nHealthMissing)
+			nBottleUtility = bottleHealthUtilFn(nHealthMissing)
 		end
 	end
 	StopProfile()
@@ -959,7 +959,7 @@ local function behaviorLib.UseHealthRegenUtilityOverride(botBrain)
 	return nUtility
 end
 
-local function behaviorLib.UseHealthRegenExecuteOverride(botBrain)
+local function useHealthRegenExecuteOverride(botBrain)
 	local bDebugLines = false
 	local bActionTaken = false
 	local unitSelf = core.unitSelf
@@ -1034,8 +1034,8 @@ local function behaviorLib.UseHealthRegenExecuteOverride(botBrain)
 	return bActionTaken
 end
 
-behaviorLib.UseHealthRegenBehavior["Utility"] = behaviorLib.UseHealthRegenUtilityOverride
-behaviorLib.UseHealthRegenBehavior["Execute"] = behaviorLib.UseHealthRegenExecuteOverride
+behaviorLib.UseHealthRegenBehavior["Utility"] = useHealthRegenUtilityOverride
+behaviorLib.UseHealthRegenBehavior["Execute"] = useHealthRegenExecuteOverride
 
 ------------------------------------
 --          UseManaRegen          --
@@ -1054,7 +1054,7 @@ behaviorLib.nBottleManaUtility = 0
 behaviorLib.bUseBottleForMana = true
 
 -------- Helper Functions --------
-local function behaviorLib.BottleManaUtilFn(nManaMissing)
+local function bottleManaUtilFn(nManaMissing)
 	-- Roughly 20+ when we are missing 145 mana
 	-- Function which crosses 20 at x=145 and 30 at x=170, convex down
 
@@ -1068,7 +1068,7 @@ local function behaviorLib.BottleManaUtilFn(nManaMissing)
 end
 
 -------- Behavior Functions --------
-local function behaviorLib.UseManaRegenUtility(botBrain)
+local function useManaRegenUtility(botBrain)
 	StartProfile("Init")
 	local nUtility = 0
 	local nBottleUtility = 0
@@ -1081,7 +1081,7 @@ local function behaviorLib.UseManaRegenUtility(botBrain)
 	if behaviorLib.bUseBottleForMana then
 		local itemBottle = core.itemBottle
 		if itemBottle and not unitSelf:HasState("State_Bottle") and itemBottle:GetActiveModifierKey() ~= "bottle_empty" then
-			nBottleUtility = behaviorLib.BottleManaUtilFn(nManaMissing)
+			nBottleUtility = bottleManaUtilFn(nManaMissing)
 		end
 	end
 	StopProfile()
@@ -1100,7 +1100,7 @@ local function behaviorLib.UseManaRegenUtility(botBrain)
 	return nUtility
 end
 
-local function behaviorLib.UseManaRegenExecute(botBrain)
+local function useManaRegenExecute(botBrain)
 	local bActionTaken = false
 	local unitSelf = core.unitSelf
 	local vecSelfPos = unitSelf:GetPosition()
@@ -1124,8 +1124,8 @@ local function behaviorLib.UseManaRegenExecute(botBrain)
 end
 
 behaviorLib.UseManaRegenBehavior = {}
-behaviorLib.UseManaRegenBehavior["Utility"] = behaviorLib.UseManaRegenUtility
-behaviorLib.UseManaRegenBehavior["Execute"] = behaviorLib.UseManaRegenExecute
+behaviorLib.UseManaRegenBehavior["Utility"] = useManaRegenUtility
+behaviorLib.UseManaRegenBehavior["Execute"] = useManaRegenExecute
 behaviorLib.UseManaRegenBehavior["Name"] = "UseManaRegen"
 tinsert(behaviorLib.tBehaviors, behaviorLib.UseManaRegenBehavior)
 
