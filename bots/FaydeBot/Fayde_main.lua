@@ -64,12 +64,12 @@ BotEcho('loading Fayde_main...')
 --          Constants          --
 ---------------------------------
 
--- Wretched Hag
+-- Fayde
 object.heroName = 'Hero_Fade'
 
 -- Item buy order. internal names  
-behaviorLib.StartingItems  = {"Item_RunesOfTheBlight", "Item_LoggersHatchet", "Item_IronShield"}
-behaviorLib.LaneItems  = {"Item_Marchers", "Item_Bottle", "Item_EnhancedMarchers", "Item_Nuke 1"}
+behaviorLib.StartingItems  = {"Item_RunesOfTheBlight", "Item_HealthPotion", "Item_LoggersHatchet", "Item_GuardianRing"}
+behaviorLib.LaneItems  = {"Item_Marchers", "Item_Bottle", "Item_LexTalionis 3", "Item_EnhancedMarchers", "Item_Nuke 1"}
 behaviorLib.MidItems  = {"Item_SpellShards 3", "Item_Nuke 5"}
 behaviorLib.LateItems  = {"Item_GrimoireOfPower", "Item_Silence", "Item_Morph"}
 
@@ -156,6 +156,10 @@ local function funcFindItemsOverride(botBrain)
 		core.itemBottle = nil
 	end
 	
+	if core.itemLexTalionis ~= nil and not core.itemLexTalionis:IsValid() then
+		core.itemLexTalionis = nil
+	end
+	
 	if core.itemCodex ~= nil and not core.itemCodex:IsValid() then
 		core.itemCodex = nil
 	end
@@ -170,7 +174,7 @@ local function funcFindItemsOverride(botBrain)
 	
 	if bUpdated then
 		--only update if we need to
-		if core.itemSteamboots and  core.itemHellflower and core.itemSheepstick then
+		if core.itemBottle and core.itemLexTalionis and core.itemCodex and  core.itemHellflower and core.itemSheepstick then
 			return
 		end
 	
@@ -180,6 +184,8 @@ local function funcFindItemsOverride(botBrain)
 			if curItem then
 				if core.itemBottle == nil and curItem:GetName() == "Item_Bottle" then
 					core.itemBottle = core.WrapInTable(curItem)
+				elseif core.itemLexTalionis == nil and curItem:GetName() == "Item_LexTalionis" then
+					core.itemLexTalionis = core.WrapInTable(curItem)
 				elseif core.itemCodex == nil and curItem:GetName() == "Item_Nuke" then
 					core.itemCodex = core.WrapInTable(curItem)
 				elseif core.itemHellflower == nil and curItem:GetName() == "Item_Silence" then
