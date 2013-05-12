@@ -524,6 +524,7 @@ local function HarassHeroExecuteOverride(botBrain)
 		end
 	end
 
+	-- Lex Talionis
 	if not bActionTaken then
 		local itemLexTalionis = core.itemLexTalionis
 		if itemLexTalionis and itemLexTalionis:CanActivate() and bCanSeeTarget and nLastHarassUtility > object.nLexTalionisThreshold  then
