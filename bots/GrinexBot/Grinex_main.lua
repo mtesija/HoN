@@ -534,4 +534,50 @@ end
 object.HealAtWellBehaviorOld = behaviorLib.HealAtWellBehavior["Execute"]
 behaviorLib.HealAtWellBehavior["Execute"] = HealAtWellOveride
 
+----------------------------------------------------
+--          AttackCreepsExecute Override          --
+----------------------------------------------------
+
+-- Override to use Logger's hatchet
+local function attackCreepsExecuteOverride(botBrain)
+	local bActionTaken = false
+	local unitSelf = core.unitSelf
+	local unitTarget = core.unitCreepTarget
+
+	-- The bot has no target/can not see the target
+	if not unitTarget or not core.CanSeeUnit(botBrain, unitTarget) then
+		return bActionTaken
+	end
+
+	local vecTargetPos = unitTarget:GetPosition()
+	local nDistSq = Vector3.Distance2DSq(unitSelf:GetPosition(), vecTargetPos)
+	local nAttackRangeSq = core.GetAbsoluteAttackRangeToUnit(unitSelf, unitTarget, true)
+
+	-- Attack creeps if they are in range
+	if not bActionTaken and nDistSq < nAttackRangeSq and unitSelf:IsAttackReady() then
+		--only attack when in nRange, so not to aggro towers/creeps until necessary, and move forward when attack is on cd
+		bActionTaken = core.OrderAttackClamp(botBrain, unitSelf, unitTarget)
+	end
+
+	-- Use Loggers Hatchet
+	if not bActionTaken then
+		local itemHatchet = core.itemHatchet
+		if itemHatchet and itemHatchet:CanActivate() and unitTarget:GetTeam() ~= unitSelf:GetTeam() and string.find(unitTarget:GetTypeName(), "Creep") and core.GetAttackSequenceProgress(unitSelf) ~= "windup" and nDistSq < 600 * 600 then
+			bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHatchet, unitTarget)
+		end
+	end
+
+	-- Move towards creeps if out of range
+	if not bAtionTaken then
+		local vecDesiredPos = core.AdjustMovementForTowerLogic(vecTargetPos)
+		if vecDesiredPos then
+			bActionTaken = core.OrderMoveToPosClamp(botBrain, unitSelf, vecDesiredPos, false)
+		end
+	end
+
+	return bActionTaken
+end
+
+behaviorLib.AttackCreepsBehavior["Execute"] = attackCreepsExecuteOverride
+
 BotEcho(object:GetName()..' finished loading Grinex_main')
