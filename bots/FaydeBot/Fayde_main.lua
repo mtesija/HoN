@@ -97,7 +97,7 @@ object.nSheepstickUp = 18
 object.nCullUse = 16
 object.nBurningShadowsUse = 18
 object.nDeepShadowsUse = 10
-object.nReflectionUse = 55
+object.nReflectionUse = 35
 object.nCodexUse = 20
 object.nHellflowerUse = 17
 object.nSheepstickUse = 21
@@ -385,7 +385,7 @@ local function getDeepShadowsRetreatPosition()
 	if unitSelf.bIsMemoryUnit then
 		local vecMovementDirection = Vector3.Normalize(unitSelf.storredPosition - unitSelf.lastStoredPosition)
 		if vecMovementDirection then
-			vecDeepShadowsPosition = unitSelf:GetPosition() + vecMovementDirection * 320
+			vecDeepShadowsPosition = unitSelf:GetPosition() + vecMovementDirection * 350
 		end
 	else
 		vecDeepShadowsPosition = unitSelf:GetPosition()
@@ -397,6 +397,27 @@ end
 -- Returns the Radius of Deep Shadows
 local function getDeepShadowsRadius()
 	return 300
+end
+
+----------------------------------------
+--          Reflection Logic          --
+----------------------------------------
+
+-- Returns the mana needed to perform a Reflection -> Burning Shadows -> Cull combo
+local function getComboMana()
+	return skills.abilCull:GetManaCost() + skills.abilBurningShadows:GetManaCost() + skills.abilReflection:GetManaCost()
+end
+
+local function getReflectionDamage(nSkillLevel)
+	if nSkillLevel == 1 then
+		return 225
+	elseif nSkillLevel == 2 then
+		return 375
+	elseif  nSkillLevel == 3 then
+		return 525
+	end
+
+	return nil
 end
 
 ---------------------------------------
@@ -414,6 +435,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	local vecMyPosition = unitSelf:GetPosition()
 	
 	local vecTargetPosition = unitTarget:GetPosition()
+	local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
 	local bCanSeeTarget = core.CanSeeUnit(botBrain, unitTarget)
 	local bTargetDisabled = unitTarget:IsStunned() or unitTarget:IsSilenced()
 	
@@ -454,22 +476,16 @@ local function HarassHeroExecuteOverride(botBrain)
 	if not bActionTaken then
 		local abilReflection = skills.abilReflection
 		if abilReflection:CanActivate() and nLastHarassUtility > object.nReflectionThreshold then
-			
-			
-			
-			
-			
-			
-			if unitSelf:GetMana() > 390 or unitTarget:GetHealthPercent() < .125 then
+			if unitSelf:GetMana() < getComboMana() and bCanSeeTarget then
+				-- If the bot does not have combo mana, then check if just Reflection will get the kill
+				local nTargetMagicEHP = unitTarget:GetHealth() / (1 - unitTarget:GetMagicResistance())
+				if nTargetMagicEHP <= getReflectionDamage(abilReflection:GetLevel()) then
+					bActionTaken = core.OrderAbility(botBrain, abilReflection)
+				end
+			else
+				-- If the bot has mana for a combo then use it
 				bActionTaken = core.OrderAbility(botBrain, abilReflection)
 			end
-			
-			
-			
-			
-			
-			
-			
 		end
 	end
 
@@ -491,14 +507,15 @@ local function HarassHeroExecuteOverride(botBrain)
 			local nTotalRange = getBurningShadowsTotalRange()
 			if nTargetDistanceSq < ((nTotalRange - 40) * (nTotalRange - 40)) then
 				local nCastRange = abilBurningShadows:GetRange()
-				-- If the target is in range cast on target otherwise cast towards them
-				if nTargetDistanceSq < (nCastRange * nCastRange) then
-					bActionTaken = core.OrderAbilityEntity(botBrain, abilBurningShadows, unitTarget)
-				else
+				if nTargetDistanceSq > (nCastRange * nCastRange) then
 					local vecTargetDirection = getBurningShadowsCastDirection(unitTarget)
+					-- If the enemy is out of cast range, then predict their movement and cast there
 					if vecTargetDirection then
 						bActionTaken = core.OrderAbilityPosition(botBrain, abilBurningShadows, vecMyPosition + vecTargetDirection * 500)
 					end
+				else
+					-- If the target is inside cast range then cast on target
+					bActionTaken = core.OrderAbilityEntity(botBrain, abilBurningShadows, unitTarget)
 				end
 			end
 		end
@@ -519,32 +536,15 @@ local function HarassHeroExecuteOverride(botBrain)
 	if not bActionTaken then
 		local itemCodex = core.itemCodex
 		if itemCodex and itemCodex:CanActivate() and bCanSeeTarget and nLastHarassUtility > object.nCodexThreshold then
-
-
-
-
-
-
-
-
-
-
-
-			if unitTarget:GetHealthPercent() > .15 then
+			if nTargetDistanceSq <= (250 * 250) then
+				-- If the enemy is in melee range, only use codex if we can't kill them with 2 or less auto attacks
+				local nTargetPhysicalEHP = unitTarget:GetHealth() / (1 - unitTarget:GetPhysicalResistance())
+				if nTargetPhysicalEHP > (core.GetFinalAttackDamageAverage(unitSelf) * 2)
+					bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemCodex, unitTarget)
+				end
+			else
 				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemCodex, unitTarget)
 			end
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
-			
 		end
 	end
 	
@@ -593,7 +593,7 @@ behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 --          RetreatFromThreat Override          --
 --------------------------------------------------
 
-function funcRetreatFromThreatExecuteOverride(botBrain)
+local function funcRetreatFromThreatExecuteOverride(botBrain)
 	local bActionTaken = false
 	local unitSelf = core.unitSelf
 	local nNearbyEnemyHeroes = core.NumberElements(core.localUnits["EnemyHeroes"])
