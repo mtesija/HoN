@@ -765,9 +765,9 @@ object.TeamGroupBehaviorOld = behaviorLib.TeamGroupBehavior["Execute"]
 behaviorLib.TeamGroupBehavior["Execute"] = TeamGroupBehaviorOverride
 
 
----------------------------------------------
---          AttackCreeps Override          --
----------------------------------------------
+----------------------------------------------------
+--          AttackCreepsExecute Override          --
+----------------------------------------------------
 
 -- Override to use logger's hatchet
 local function behaviorLib.AttackCreepsExecuteOverride(botBrain)
