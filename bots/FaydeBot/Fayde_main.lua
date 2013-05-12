@@ -273,23 +273,6 @@ end
 
 behaviorLib.CustomHarassUtility = CustomHarassUtilityFnOverride   
 
-----------------------------------------
---          OnThink Override          --
-----------------------------------------
-
-function object:onthinkOverride(tGameVariables)
-	self:onthinkOld(tGameVariables)
-
-	updateIllusions(self)
-	if behaviorLib.currentBehavior ~= "HarassHero" then
-		-- Don't move illusions if they are attacking something
-		moveIllusions(self, core.unitSelf:GetPosition())
-	end
-end
-
-object.onthinkOld = object.onthink
-object.onthink = object.onthinkOverride
-
 ------------------------------------
 --          Bottle Logic          --
 ------------------------------------
@@ -1128,5 +1111,22 @@ behaviorLib.UseManaRegenBehavior["Utility"] = useManaRegenUtility
 behaviorLib.UseManaRegenBehavior["Execute"] = useManaRegenExecute
 behaviorLib.UseManaRegenBehavior["Name"] = "UseManaRegen"
 tinsert(behaviorLib.tBehaviors, behaviorLib.UseManaRegenBehavior)
+
+----------------------------------------
+--          OnThink Override          --
+----------------------------------------
+
+function object:onthinkOverride(tGameVariables)
+	self:onthinkOld(tGameVariables)
+
+	updateIllusions(self)
+	if behaviorLib.currentBehavior ~= "HarassHero" then
+		-- Don't move illusions if they are attacking something
+		moveIllusions(self, core.unitSelf:GetPosition())
+	end
+end
+
+object.onthinkOld = object.onthink
+object.onthink = object.onthinkOverride
 
 BotEcho(object:GetName()..' finished loading Fayde_main')
