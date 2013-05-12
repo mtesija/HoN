@@ -50,9 +50,9 @@ runfile "bots/behaviorLib.lua"
 local core, eventsLib, behaviorLib, metadata, skills = object.core, object.eventsLib, object.behaviorLib, object.metadata, object.skills
 
 local print, ipairs, pairs, string, table, next, type, tinsert, tremove, tsort, format, tostring, tonumber, strfind, strsub
-    = _G.print, _G.ipairs, _G.pairs, _G.string, _G.table, _G.next, _G.type, _G.table.insert, _G.table.remove, _G.table.sort, _G.string.format, _G.tostring, _G.tonumber, _G.string.find, _G.string.sub
+	= _G.print, _G.ipairs, _G.pairs, _G.string, _G.table, _G.next, _G.type, _G.table.insert, _G.table.remove, _G.table.sort, _G.string.format, _G.tostring, _G.tonumber, _G.string.find, _G.string.sub
 local ceil, floor, pi, tan, atan, atan2, abs, cos, sin, acos, asin, max, random
-    = _G.math.ceil, _G.math.floor, _G.math.pi, _G.math.tan, _G.math.atan, _G.math.atan2, _G.math.abs, _G.math.cos, _G.math.sin, _G.math.acos, _G.math.asin, _G.math.max, _G.math.random
+	= _G.math.ceil, _G.math.floor, _G.math.pi, _G.math.tan, _G.math.atan, _G.math.atan2, _G.math.abs, _G.math.cos, _G.math.sin, _G.math.acos, _G.math.asin, _G.math.max, _G.math.random
 
 local BotEcho, VerboseLog, BotLog = core.BotEcho, core.VerboseLog, core.BotLog
 local Clamp = core.Clamp
@@ -67,10 +67,10 @@ BotEcho('loading Grinex_main...')
 object.heroName = 'Hero_Grinex'
 
 -- Item buy order. internal names  
-behaviorLib.StartingItems  = {"Item_IronBuckler", "Item_RunesOfTheBlight", "Item_LoggersHatchet"}
-behaviorLib.LaneItems  = {"Item_Marchers", "Item_Steamboots", "Item_Lightbrand", "Item_Sicarius"}
-behaviorLib.MidItems  = {"Item_Pierce 3", "Item_Critical1 4"}
-behaviorLib.LateItems  = {"Item_Weapon3", "Item_DaemonicBreastplate"}
+behaviorLib.StartingItems = {"Item_IronBuckler", "Item_RunesOfTheBlight", "Item_LoggersHatchet"}
+behaviorLib.LaneItems = {"Item_Marchers", "Item_Steamboots", "Item_Lightbrand", "Item_Sicarius"}
+behaviorLib.MidItems = {"Item_Pierce 3", "Item_Critical1 4"}
+behaviorLib.LateItems = {"Item_Weapon3", "Item_DaemonicBreastplate"}
 
 -- Skillbuild table, 0=q, 1=w, 2=e, 3=r, 4=attri
 object.tSkills = {
@@ -137,16 +137,16 @@ end
 ------------------------------------------
 --          FindItems Override          --
 ------------------------------------------
-
+--[[
 local function funcFindItemsOverride(botBrain)
-    local bUpdated = object.FindItemsOld(botBrain)
+	local bUpdated = object.FindItemsOld(botBrain)
  
 	if core.itemSteamboots ~= nil and not core.itemSteamboots:IsValid() then
 		core.itemSteamboots = nil
 	end
      
 	if bUpdated then
-	--only update if we need to
+		--only update if we need to
 		if core.itemSteamboots then
 			return
 		end
@@ -169,35 +169,31 @@ core.FindItems = funcFindItemsOverride
 ----------------------------------------
 --          OnThink Override          --
 ----------------------------------------
---[[
-function object:onthinkOverride(tGameVariables)
-    self:onthinkOld(tGameVariables)
 
-	local unitSelf = core.unitSelf
-	core.FindItems()
+function object:onthinkOverride(tGameVariables)
+	self:onthinkOld(tGameVariables)
+
 	
 	-- Toggle Steamboots for more Health/Mana
 	local itemSteamboots = core.itemSteamboots
-	if itemSteamboots then
-		if itemSteamboots:CanActivate() then
-			local sKey = itemSteamboots:GetActiveModifierKey()
+	if itemSteamboots and itemSteamboots:CanActivate() then
+		local unitSelf = core.unitSelf
+		local sKey = itemSteamboots:GetActiveModifierKey()
+		if sKey == "str" then
 			-- Toggle away from STR if health is high enough
-			if sKey == "str" then
-				if unitSelf:GetHealthPercent() > .575 then
-					core.OrderItem(itemSteamboots)
-				end
+			if unitSelf:GetHealthPercent() > .575 then
+				core.OrderItem(itemSteamboots)
+			end
+		elseif sKey == "agi" then
 			-- Always toggle past AGI
-			elseif sKey == "agi" then
-					core.OrderItem(itemSteamboots)
+			core.OrderItem(itemSteamboots)
+		elseif sKey == "int" then
 			-- Toggle away from INT if health gets too low
-			elseif sKey == "int" then
-				if unitSelf:GetHealthPercent() < .375 then
-					core.OrderItem(itemSteamboots)
-				end
+			if unitSelf:GetHealthPercent() < .375 then
+				core.OrderItem(itemSteamboots)
 			end
 		end
 	end
-
 end
 
 object.onthinkOld = object.onthink
@@ -492,7 +488,7 @@ behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 --          RetreatFromThreat Override          --
 --------------------------------------------------
 
-function funcRetreatFromThreatExecuteOverride(botBrain)
+local function funcRetreatFromThreatExecuteOverride(botBrain)
 	local bActionTaken = false
 	local abilStalk = skills.abilStalk
 	
