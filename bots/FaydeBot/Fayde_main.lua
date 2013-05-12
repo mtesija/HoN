@@ -990,7 +990,7 @@ local function useHealthRegenExecuteOverride(botBrain)
 	if not bActionTaken and behaviorLib.nHealthPotUtility == nMaxUtility then
 		local tHealthPots = core.InventoryContains(tInventory, "Item_HealthPotion")
 		if #tHealthPots > 0 and not unitSelf:HasState("State_HealthPotion") then
-			local vecRetreatDirection = behaviorLib.GetSafeDrinkDirection()
+			local vecRetreatDirection = getSafeDrinkDirection()
 			-- Check if it is safe to drink
 			if vecRetreatDirection then
 				bActionTaken = core.OrderMoveToPosClamp(botBrain, unitSelf, vecSelfPos + vecRetreatDirection * core.moveVecMultiplier, false)
@@ -1004,7 +1004,7 @@ local function useHealthRegenExecuteOverride(botBrain)
 	if not bActionTaken and behaviorLib.nBottleHealthUtility == nMaxUtility then
 		local itemBottle = core.itemBottle
 		if itemBottle and itemBottle:CanActivate() and not unitSelf:HasState("State_Bottle") and itemBottle:GetActiveModifierKey() ~= "bottle_empty" then
-			local vecRetreatDirection = behaviorLib.GetSafeDrinkDirection()
+			local vecRetreatDirection = getSafeDrinkDirection()
 			-- Check if it is safe to drink
 			if vecRetreatDirection then
 				bActionTaken = core.OrderMoveToPosClamp(botBrain, unitSelf, vecSelfPos + vecRetreatDirection * core.moveVecMultiplier, false)
@@ -1093,7 +1093,7 @@ local function useManaRegenExecute(botBrain)
 	if not bActionTaken  then
 		local itemBottle = core.itemBottle
 		if itemBottle and itemBottle:CanActivate() and not unitSelf:HasState("State_Bottle") and itemBottle:GetActiveModifierKey() ~= "bottle_empty" then
-			local vecRetreatDirection = behaviorLib.GetSafeDrinkDirection()
+			local vecRetreatDirection = getSafeDrinkDirection()
 			-- Check if it is safe to drink
 			if vecRetreatDirection then
 				bActionTaken = core.OrderMoveToPosClamp(botBrain, unitSelf, vecSelfPos + vecRetreatDirection * core.moveVecMultiplier, false)
