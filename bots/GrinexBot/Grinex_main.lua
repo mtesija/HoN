@@ -137,7 +137,7 @@ end
 ------------------------------------------
 --          FindItems Override          --
 ------------------------------------------
---[[
+
 local function funcFindItemsOverride(botBrain)
 	local bUpdated = object.FindItemsOld(botBrain)
  
@@ -198,7 +198,7 @@ end
 
 object.onthinkOld = object.onthink
 object.onthink = object.onthinkOverride
---]]
+
 ----------------------------------------------
 --          OnCombatEvent Override          --
 ----------------------------------------------
