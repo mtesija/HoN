@@ -1,4 +1,3 @@
-
 ---------------------------------
 --          PortLogic          --
 ---------------------------------
@@ -291,12 +290,9 @@ function behaviorLib.AttackCreepsExecute(botBrain)
 	
 	-- Use Loggers Hatchet
 	if not bActionTaken then
-		local tItemHatchet = core.InventoryContains(unitSelf:GetInventory(), "Item_LoggersHatchet")
-		if #tItemHatchet > 0 then
-			local itemHatchet = tItemHatchet[1]
-			if itemHatchet:CanActivate() and unitTarget:GetTeam() ~= unitSelf:GetTeam() and string.find(unitTarget:GetTypeName(), "Creep") and core.GetAttackSequenceProgress(unitSelf) ~= "windup" and nDistSq < 600 * 600 then
-				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHatchet, unitTarget)
-			end
+		local itemHatchet = core.itemHatchet
+		if itemHatchet and itemHatchet:CanActivate() and unitTarget:GetTeam() ~= unitSelf:GetTeam() and string.find(unitTarget:GetTypeName(), "Creep") and core.GetAttackSequenceProgress(unitSelf) ~= "windup" and nDistSq < 600 * 600 then
+			bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHatchet, unitTarget)
 		end
 	end
 	
