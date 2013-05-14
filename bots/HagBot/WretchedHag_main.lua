@@ -618,6 +618,23 @@ local function getAngToPoint(vecOrigin, vecTarget)
 	return nAng
 end
 
+-- Returns the length of a vector without using square roots. Modified from Kairus101 and Anakonda's vectorLength code.
+local function vectorLength(vecInput) 
+	local nX = vecInput.x
+	local nY = vecInput.y
+	
+	if nX == 0 then
+		return nY
+	end
+	
+	if nY == 0 then
+		return nX
+	end
+	
+	local nAngle = atan2(nY,nX)
+	return nY / sin(nAngle)
+end
+
 -- Find the point D such that the lenght of CD is equal to nRange
 --  A-----D---------B
 --   \   /
@@ -635,7 +652,7 @@ local function bestPointOnPath(vecA, vecB, nRange, bIgnoreZAxis)
 	end
 	
 	local vecAC = vecC - vecA
-	local nLengthAC = Vector3.Length(vecAC)
+	local nLengthAC = vectorLength(vecAC)
 	
 	if nLengthAC then
 		local nAngleA = core.AngleBetween(vecB - vecA, vecAC)
