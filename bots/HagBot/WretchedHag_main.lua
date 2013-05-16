@@ -356,9 +356,7 @@ local function filterGroupRange(tGroup, vecCenter, nRange)
 end
 
 -- Find the angle in degrees between two targets. Modified from St0l3n_ID's AngToTarget code
-local function getAngToTarget(unitSelf, unitTarget)
-	local vecSelf = unitSelf:GetPosition()
-	local vecTarget = unitTarget:GetPosition()
+local function getAngToTarget(vecSelf, vecTarget)
 	local nDeltaY = vecTarget.y - vecSelf.y
 	local nDeltaX = vecTarget.x - vecSelf.x
 
