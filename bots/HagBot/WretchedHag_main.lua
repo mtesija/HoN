@@ -86,7 +86,7 @@ object.tSkills = {
 
 object.nHauntUp = 8
 object.nScreamUp = 12
-object.nBlastUp = 20
+object.nBlastUp = 26
 object.nHellflowerUp = 12
 object.nSheepstickUp = 15
 
@@ -95,18 +95,18 @@ object.nSheepstickUp = 15
 object.nHauntUse = 10
 object.nBlinkUse = 8
 object.nScreamUse = 16
-object.nBlastUse = 22
+object.nBlastUse = 24
 object.nHellflowerUse = 15
 object.nSheepstickUse = 18
 
 -- Thresholds of aggression the bot must reach to use these abilities
 
 object.nHauntThreshold = 23
-object.nBlinkThreshold = 32
+object.nBlinkThreshold = 31
 object.nScreamThreshold = 26
-object.nBlastThreshold = 40
-object.nHellflowerThreshold = 27
-object.nSheepstickThreshold = 35
+object.nBlastThreshold = 36
+object.nHellflowerThreshold = 23
+object.nSheepstickThreshold = 29
 
 -- Other variables
 
