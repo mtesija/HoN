@@ -531,7 +531,7 @@ local function HarassHeroExecuteOverride(botBrain)
 			if vecDirection then
 				-- Cast towards group center (only if there are 2 or more heroes)
 				bActionTaken = core.OrderAbilityPosition(botBrain, abilBlast, vecMyPosition + vecDirection)
-			elseif nTargetMagicEHP and nTargetMagicEHP > blastDamage() then
+			elseif nTargetMagicEHP and (nTargetMagicEHP * .85) > blastDamage() then
 				-- Otherwise cast on target
 				nRange = nRange - 75
 				if nTargetDistanceSq < (nRange * nRange) and nTargetDistanceSq > (200 * 200) then
@@ -544,7 +544,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Haunt
 	if not bActionTaken then
 		local abilHaunt = skills.abilHaunt
-		if abilHaunt:CanActivate() and (nMyMana - abilHaunt:GetManaCost()) >= 60  and bCanSeeTarget and nTargetMagicEHP and nTargetMagicEHP > hauntDamage() and nLastHarassUtility > object.nHauntThreshold then
+		if abilHaunt:CanActivate() and (nMyMana - abilHaunt:GetManaCost()) >= 60  and bCanSeeTarget and nTargetMagicEHP and (nTargetMagicEHP .65) > hauntDamage() and nLastHarassUtility > object.nHauntThreshold then
 			local nRange = abilHaunt:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderAbilityEntity(botBrain, abilHaunt, unitTarget)
