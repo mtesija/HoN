@@ -511,7 +511,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Hellflower
 	if not bActionTaken then
 		local itemHellflower = core.itemHellflower
-		if itemHellflower and itemHellflower:CanActivate() and (nMyMana - itemHellFlower:GetManaCost()) >= 60 and not bTargetDisabled and bCanSeeTarget and nLastHarassUtility > object.nHellflowerThreshold then
+		if itemHellflower and itemHellflower:CanActivate() and (nMyMana - itemHellflower:GetManaCost()) >= 60 and not bTargetDisabled and bCanSeeTarget and nLastHarassUtility > object.nHellflowerThreshold then
 			local nRange = itemHellflower:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHellflower, unitTarget)
@@ -542,7 +542,7 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Haunt
 	if not bActionTaken then
 		local abilHaunt = skills.abilHaunt
-		if abilHaunt:CanActivate() and (nMyMana - abilHaunt:GetManaCost()) >= 60  and bCanSeeTarget and nTargetMagicEHP and (nTargetMagicEHP .65) > hauntDamage() and nLastHarassUtility > object.nHauntThreshold then
+		if abilHaunt:CanActivate() and (nMyMana - abilHaunt:GetManaCost()) >= 60  and bCanSeeTarget and nTargetMagicEHP and (nTargetMagicEHP * .65) > hauntDamage() and nLastHarassUtility > object.nHauntThreshold then
 			local nRange = abilHaunt:GetRange()
 			if nTargetDistanceSq < (nRange * nRange) then
 				bActionTaken = core.OrderAbilityEntity(botBrain, abilHaunt, unitTarget)
