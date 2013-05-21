@@ -146,7 +146,6 @@ local function funcFindItemsOverride(botBrain)
 	end
      
 	if bUpdated then
-		--only update if we need to
 		if core.itemSteamboots then
 			return
 		end
@@ -173,7 +172,6 @@ core.FindItems = funcFindItemsOverride
 function object:onthinkOverride(tGameVariables)
 	self:onthinkOld(tGameVariables)
 
-	
 	-- Toggle Steamboots for more Health/Mana
 	local itemSteamboots = core.itemSteamboots
 	if itemSteamboots and itemSteamboots:CanActivate() then
@@ -207,7 +205,6 @@ function object:oncombateventOverride(EventData)
 	self:oncombateventOld(EventData)
 
 	local nAddBonus = 0
-	
 	if EventData.Type == "Ability" then
 		if EventData.InflictorName == "Ability_Grinex1" then
 			nAddBonus = nAddBonus + self.nStepUse
@@ -310,88 +307,69 @@ end
 
 -- Find the best direction to cast Shadow Step
 local function getStepDirection(botBrain, unitTarget)
-	local bSuccess = false
 	local vecDirection = nil
 	local vecTargetPosition = unitTarget:GetPosition()
 	
 	local tLocalUnits = core.localUnits
 	if tLocalUnits then
 		-- Check Enemy Heroes
-		if not bSuccess then
+		if not vecDirection then
 			local tLocalEnemyHeroes = filterGroupRange(tLocalUnits["EnemyHeroes"], vecTargetPosition, 350)
 			if core.NumberElements(tLocalEnemyHeroes) > 1 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalEnemyHeroes)
-				if vecDirection then
-					bSuccess = true
-				end
 			end
 		end
 		
 		-- Check Allied Heroes
-		if not bSuccess then
+		if not vecDirection then
 			local tLocalAllyHeroes = filterGroupRange(tLocalUnits["AllyHeroes"], vecTargetPosition, 350)
 			if core.NumberElements(tLocalAllyHeroes) > 0 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalAllyHeroes)
-				if vecDirection then
-					bSuccess = true
-				end
 			end
 		end
 		
 		-- Check Enemy Buildings
-		if not bSuccess then
+		if not vecDirection then
 			local tLocalEnemyBuildings = filterGroupRange(tLocalUnits["EnemyBuildings"], vecTargetPosition, 350)
 			if core.NumberElements(tLocalEnemyBuildings) > 0 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalEnemyBuildings)
-				if vecDirection then
-					bSuccess = true
-				end
 			end
 		end
 		
 		-- Check Allied Buildings
-		if not bSuccess then
+		if not vecDirection then
 			local tLocalAllyBuildings = filterGroupRange(tLocalUnits["AllyBuildings"], vecTargetPosition, 350)
 			if core.NumberElements(tLocalAllyBuildings) > 0 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalAllyBuildings)
-				if vecDirection then
-					bSuccess = true
-				end
 			end
 		end
 	end
 	
 	-- Check Trees
-	if not bSuccess then
+	if not vecDirection then
 		local tLocalTrees = HoN.GetTreesInRadius(vecTargetPosition, 350)
 		if tLocalTrees then
 			if core.NumberElements(tLocalTrees) > 0 then
 				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalTrees)
-				if vecDirection then
-					bSuccess = true
-				end
 			end
 		end
 	end 
 
-	--[[ 
+--[[ 
 	-- Check Cliffs
-	if not bSuccess then
+	if not vecDirection then
 		vecDirection = checkForCliffs(vecTargetPosition)
 		if vecDirection then
 			bSuccess = true
 		end
 	end
-	--]]
+--]]
 	
 	-- Push Towards Ally Well
-	if not bSuccess then
+	if not vecDirection then
 		local unitAllyWell = core.allyWell
 		if unitAllyWell then
 			vecDirection = Vector3.Normalize(unitAllyWell:GetPosition() - vecTargetPosition)
-			if vecDirection then
-				bSuccess = true
-			end
 		end
 	end
 	
@@ -411,9 +389,12 @@ local function HarassHeroExecuteOverride(botBrain)
 	
 	local unitSelf = core.unitSelf
 	local vecMyPosition = unitSelf:GetPosition()
+	
 	local vecTargetPosition = unitTarget:GetPosition()
 	local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
-	local nLastHarassUtility = behaviorLib.lastHarassUtil  
+	local bCanSeeTarget = core.CanSeeUnit(botBrain, unitTarget)
+	
+	local nLastHarassUtility = behaviorLib.lastHarassUtil
 	local bActionTaken = false
 	
 	-- Stop the bot from trying to harass heroes while dead
@@ -440,14 +421,12 @@ local function HarassHeroExecuteOverride(botBrain)
 	
 	-- Shadow Step
 	if not bActionTaken then
-		if not unitTarget:IsStunned() then
-			local abilStep = skills.abilStep
-			if abilStep:CanActivate() and nLastHarassUtility > object.nStepThreshold then
-				if nTargetDistanceSq < (450 * 450) then
-					local vecPushDirection = getStepDirection(botBrain, unitTarget)
-					if vecPushDirection then
-						-- bActionTaken = core.OrderAbilityEntity(botBrain, abilStep)
-					end
+		local abilStep = skills.abilStep
+		if abilStep:CanActivate() and bCanSeeTarget and not unitTarget:IsStunned() and nLastHarassUtility > object.nStepThreshold then
+			if nTargetDistanceSq < (450 * 450) then
+				local vecPushDirection = getStepDirection(botBrain, unitTarget)
+				if vecPushDirection then
+					-- bActionTaken = core.OrderAbilityEntity(botBrain, abilStep)
 				end
 			end
 		end
@@ -490,14 +469,11 @@ behaviorLib.HarassHeroBehavior["Execute"] = HarassHeroExecuteOverride
 
 local function funcRetreatFromThreatExecuteOverride(botBrain)
 	local bActionTaken = false
-	local abilStalk = skills.abilStalk
 	
 	-- Use Rift Stalk to retreat if possible
-	if abilStalk:CanActivate() then
-		local unitSelf = core.unitSelf
-		if unitSelf:GetHealthPercent() < .55 then
-			bActionTaken = core.OrderAbility(botBrain, abilStalk)
-		end
+	local abilStalk = skills.abilStalk
+	if abilStalk:CanActivate() and core.unitSelf:GetHealthPercent() < .55 then
+		bActionTaken = core.OrderAbility(botBrain, abilStalk)
 	end
 	
 	if not bActionTaken then
@@ -514,16 +490,11 @@ behaviorLib.RetreatFromThreatBehavior["Execute"] = funcRetreatFromThreatExecuteO
 
 local function HealAtWellOveride(botBrain)
 	local bActionTaken = false
-	local abilStalk = skills.abilStalk
  
 	-- Use Rift Stalk on way to well
-	if abilStalk:CanActivate() then
-		local unitSelf = core.unitSelf
-		local vecAllyWell = core.allyWell:GetPosition()
-		local nDistToWellSq = Vector3.Distance2DSq(unitSelf:GetPosition(), vecAllyWell)
-		if nDistToWellSq > (1000 * 1000) then
-			bActionTaken = core.OrderAbility(botBrain, abilStalk)
-		end
+	local abilStalk = skills.abilStalk
+	if abilStalk:CanActivate() and Vector3.Distance2DSq(core.unitSelf:GetPosition(), core.allyWell:GetPosition()) > (1000 * 1000) then
+		bActionTaken = core.OrderAbility(botBrain, abilStalk)
 	end
  
 	if not bActionTaken then
