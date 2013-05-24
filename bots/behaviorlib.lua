@@ -31,11 +31,11 @@ function behaviorLib.ShouldPort(vecDesiredPosition)
 	local tInventory = unitSelf:GetInventory()
 	local itemGhostMarchers = core.itemGhostMarchers
 	
-	local idefHomecomingStone = HoN.GetItemDefinition("Item_HomecomingStone")
-	if idefHomecomingStone then
-		local tHomecomingStones = core.InventoryContains(tInventory, idefHomecomingStone:GetName(), true)
-		if #tHomecomingStones > 0 then
-			itemPort = tHomecomingStones[1]
+	local idefPostHaste = HoN.GetItemDefinition("Item_PostHaste")
+	if idefPostHaste then
+		local tPostHaste = core.InventoryContains(tInventory, idefPostHaste:GetName(), true)
+		if #tPostHaste > 0 then
+			itemPort = tPostHaste[1]
 			unitTarget = core.GetClosestTeleportBuilding(vecDesiredPosition)
 
 			if bDebugEchos then
@@ -44,10 +44,11 @@ function behaviorLib.ShouldPort(vecDesiredPosition)
 
 			if unitTarget then
 				local nMoveSpeed = unitSelf:GetMoveSpeed()
-				local myPos = unitSelf:GetPosition()
-				local nNormalWalkingTimeMS = core.TimeToPosition(vecDesiredPosition, myPos, nMoveSpeed, itemGhostMarchers)
-				local nCooldownTime = core.GetRemainingCooldownTime(unitSelf, idefHomecomingStone)
-				local nPortWalkTime = core.TimeToPosition(vecDesiredPosition, unitTarget:GetPosition(), nMoveSpeed, itemGhostMarchers)
+				local vecMyPos = unitSelf:GetPosition()
+				local vecTargetPosition = unitTarget:GetPosition()
+				local nNormalWalkingTimeMS = core.TimeToPosition(vecDesiredPosition, vecMyPos, nMoveSpeed, itemGhostMarchers)
+				local nCooldownTime = core.GetRemainingCooldownTime(unitSelf, idefPostHaste)
+				local nPortWalkTime = core.TimeToPosition(vecDesiredPosition, vecTargetPosition, nMoveSpeed, itemGhostMarchers)
 				local nPortingTimeMS = nCooldownTime + nPortWalkTime + nChannelTime
 				local nPortDifference = nNormalWalkingTimeMS - nPortingTimeMS
 
@@ -62,8 +63,8 @@ function behaviorLib.ShouldPort(vecDesiredPosition)
 				end
 
 				if bDebugLines then
-					core.DrawXPosition(unitTarget:GetPosition(), 'teal')
-					core.DrawDebugLine(myPos, unitTarget:GetPosition())
+					core.DrawXPosition(vecTargetPosition, 'teal')
+					core.DrawDebugLine(vecMyPos, vecTargetPosition)
 					core.DrawXPosition(vecDesiredPosition, 'red')
 				end
 			end
@@ -71,26 +72,27 @@ function behaviorLib.ShouldPort(vecDesiredPosition)
 	end
 		
 	if not itemPort then
-		local idefPostHaste = HoN.GetItemDefinition("Item_PostHaste")
-		if idefPostHaste then
-			local tPostHaste = core.InventoryContains(tInventory, idefPostHaste:GetName(), true)
-			if #tPostHaste > 0 then
-				itemPort = tPostHaste[1]
+		local idefHomecomingStone = HoN.GetItemDefinition("Item_HomecomingStone")
+		if idefHomecomingStone then
+			local tHomecomingStones = core.InventoryContains(tInventory, idefHomecomingStone:GetName(), true)
+			if #tHomecomingStones > 0 then
+				itemPort = tHomecomingStones[1]
 				unitTarget = core.GetClosestTeleportBuilding(vecDesiredPosition)
-
+	
 				if bDebugEchos then
 					BotEcho("  unitTarget: "..(unitTarget and unitTarget:GetTypeName() or "nil")) 
 				end
-
+	
 				if unitTarget then
 					local nMoveSpeed = unitSelf:GetMoveSpeed()
-					local myPos = unitSelf:GetPosition()
-					local nNormalWalkingTimeMS = core.TimeToPosition(vecDesiredPosition, myPos, nMoveSpeed, itemGhostMarchers)
-					local nCooldownTime = core.GetRemainingCooldownTime(unitSelf, idefPostHaste)
-					local nPortWalkTime = core.TimeToPosition(vecDesiredPosition, unitTarget:GetPosition(), nMoveSpeed, itemGhostMarchers)
+					local vecMyPos = unitSelf:GetPosition()
+					local vecTargetPosition = unitTarget:GetPosition()
+					local nNormalWalkingTimeMS = core.TimeToPosition(vecDesiredPosition, vecMyPos, nMoveSpeed, itemGhostMarchers)
+					local nCooldownTime = core.GetRemainingCooldownTime(unitSelf, idefHomecomingStone)
+					local nPortWalkTime = core.TimeToPosition(vecDesiredPosition, vecTargetPosition, nMoveSpeed, itemGhostMarchers)
 					local nPortingTimeMS = nCooldownTime + nPortWalkTime + nChannelTime
 					local nPortDifference = nNormalWalkingTimeMS - nPortingTimeMS
-
+	
 					if nPortDifference > behaviorLib.nPortThresholdMS then
 						bShouldPort = true
 					end
@@ -100,10 +102,10 @@ function behaviorLib.ShouldPort(vecDesiredPosition)
 							nNormalWalkingTimeMS, nPortingTimeMS, nCooldownTime, nPortWalkTime, nPortDifference, behaviorLib.nPortThresholdMS)) 
 						BotEcho("Traversing forward... port: "..tostring(bShouldPort)) 
 					end
-
+	
 					if bDebugLines then
 						core.DrawXPosition(unitTarget:GetPosition(), 'teal')
-						core.DrawDebugLine(myPos, unitTarget:GetPosition())
+						core.DrawDebugLine(vecMyPos, unitTarget:GetPosition())
 						core.DrawXPosition(vecDesiredPosition, 'red')
 					end
 				end
@@ -344,10 +346,10 @@ function behaviorLib.GetSafeDrinkDirection()
 	for _, unitEnemy in pairs(core.localUnits["EnemyUnits"]) do
 		local nAbsRange = core.GetAbsoluteAttackRangeToUnit(unitEnemy, unitSelf)
 		local nDist = Vector3.Distance2D(vecSelfPos, unitEnemy:GetPosition())
-		if nDist < nAbsRange * 1.15 then
+		if nDist < nAbsRange + 200 then
 			local tUnitRangePair = {}
 			tUnitRangePair[1] = unitEnemy
-			tUnitRangePair[2] = (nAbsRange * 1.15 - nDist)
+			tUnitRangePair[2] = (nAbsRange + 200 - nDist)
 			tinsert(tThreateningUnits, tUnitRangePair)
 		end
 	end
