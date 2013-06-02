@@ -13,7 +13,32 @@ behaviorLib.bCheckPorting = true
 behaviorLib.bLastPortResult = false
 
 -------- Helper Functions --------
-function behaviorLib.ShouldPort(vecDesiredPosition)
+function core.GetClosestTeleportUnit(botBrain, vecPosition)
+	local unitBuilding = core.GetClosestTeleportBuilding(vecPosition)
+	local vecBuildingPosition = unitBuilding:GetPosition()
+	local nDistance = Vector3.Distance2D(vecBuildingPosition, vecPosition)
+	local nDistancePositionToTowerSq = nDistance * nDistance
+
+	local unitTarget = nil
+	local nBestDistanceSq = nDistancePositionToTowerSq
+	core.AssessLocalUnits(botBrain, vecPosition, nDistance)
+	for _, unitCreep in pairs(core.localUnits["AllyCreeps"]) do
+		if unitCreep:GetHealth() > unitCreep:GetMaxHealth() * .8 then
+			local vecCreepPosition = unitCreep:GetPosition()
+			if Vector3.Distance2DSq(vecCreepPosition, vecBuildingPosition) < nDistancePositionToTowerSq then
+				local nDistanceCreepToPositionSq = Vector3.Distance2DSq(vecCreepPosition, vecPosition)
+				if nDistanceCreepToPositionSq > nBestDistanceSq then
+					nBestDistanceSq = nDistanceCreepToPositionSq
+					unitTarget = unitCreep
+				end
+			end
+		end
+	end
+
+	return unitTarget or unitBuilding
+end
+
+function behaviorLib.ShouldPort(botBrain, vecDesiredPosition)
 	local bDebugEchos = false
 	local bDebugLines = false
 	
@@ -36,7 +61,7 @@ function behaviorLib.ShouldPort(vecDesiredPosition)
 		local tPostHaste = core.InventoryContains(tInventory, idefPostHaste:GetName(), true)
 		if #tPostHaste > 0 then
 			itemPort = tPostHaste[1]
-			unitTarget = core.GetClosestTeleportBuilding(vecDesiredPosition)
+			unitTarget = core.GetClosestTeleportUnit(botBrain, vecDesiredPosition)
 
 			if bDebugEchos then
 				BotEcho("  unitTarget: "..(unitTarget and unitTarget:GetTypeName() or "nil")) 
@@ -131,7 +156,7 @@ function behaviorLib.PortLogic(botBrain, vecDesiredPosition)
 		local nDesiredDistanceSq = Vector3.Distance2DSq(vecDesiredPosition, unitSelf:GetPosition())
 		local bSuccess = false
 		if nDesiredDistanceSq > (2000 * 2000) then
-			local bShouldPort, unitTarget, itemPort = behaviorLib.ShouldPort(vecDesiredPosition)
+			local bShouldPort, unitTarget, itemPort = behaviorLib.ShouldPort(botBrain, vecDesiredPosition)
 			if bShouldPort and unitTarget and itemPort then
 				if itemPort:GetTypeName() == "Item_HomecomingStone" then
 					-- Add noise to the position to prevent clustering on mass ports
@@ -421,12 +446,12 @@ function behaviorLib.BatterySupplyManaUtilFn(nManaMissing, nCharges)
 	return core.ATanFn(nManaMissing, vecPoint, vecOrigin, 100)
 end
 
-function behaviorLib.RunesOfTheBlightUtilFn(nHealthMissing)
+function behaviorLib.RunesOfTheBlightUtilFn(nHealthMissing, nHealthRegen)
 	-- Roughly 20+ when we are missing 138 hp
 	-- Function which crosses 20 at x=138 and is 30 at roughly x=600, convex down
 
 	local nHealAmount = 115
-	local nHealBuffer = 18
+	local nHealBuffer = nHealthRegen * 16
 	local nUtilityThreshold = 20
 		
 	local vecPoint = Vector3.Create(nHealAmount + nHealBuffer, nUtilityThreshold)
@@ -434,11 +459,12 @@ function behaviorLib.RunesOfTheBlightUtilFn(nHealthMissing)
 	return core.ATanFn(nHealthMissing, vecPoint, vecOrigin, 100)
 end
 
-function behaviorLib.HealthPotUtilFn(nHealthMissing)
+function behaviorLib.HealthPotUtilFn(nHealthMissing, nHealthRegen)
 	-- Roughly 20+ when we are missing 400 hp
 	-- Function which crosses 20 at x=400 and 40 at x=650, convex down
 	
 	local nHealAmount = 400
+	local nHealBuffer = nHealthRegen * 10
 	local nUtilityThreshold = 20
 	
 	local vecPoint = Vector3.Create(nHealAmount, nUtilityThreshold)
@@ -446,12 +472,12 @@ function behaviorLib.HealthPotUtilFn(nHealthMissing)
 	return core.ATanFn(nHealthMissing, vecPoint, vecOrigin, 100)
 end
 
-function behaviorLib.BottleHealthUtilFn(nHealthMissing)
+function behaviorLib.BottleHealthUtilFn(nHealthMissing, nHealthRegen)
 	-- Roughly 20+ when we are missing 195 hp
 	-- Function which crosses 20 at x=195 and 30 at x=230, convex down
 
 	local nHealAmount = 135
-	local nHealBuffer = 60
+	local nHealBuffer = nHealthRegen * 3
 	local nUtilityThreshold = 20
 
 	local vecPoint = Vector3.Create(nHealAmount + nHealBuffer, nUtilityThreshold)
@@ -459,12 +485,12 @@ function behaviorLib.BottleHealthUtilFn(nHealthMissing)
 	return core.ATanFn(nHealthMissing, vecPoint, vecOrigin, 100)
 end
 
-function behaviorLib.BottleManaUtilFn(nManaMissing)
+function behaviorLib.BottleManaUtilFn(nManaMissing, nManaRegen)
 	-- Roughly 20+ when we are missing 145 mana
 	-- Function which crosses 20 at x=145 and 30 at x=170, convex down
 
 	local nManaRegenAmount = 70
-	local nManaBuffer = 75
+	local nManaBuffer = nManaRegen * 3
 	local nUtilityThreshold = 20
 	
 	local vecPoint = Vector3.Create(nManaRegenAmount + nManaBuffer, nUtilityThreshold)
@@ -486,7 +512,9 @@ function behaviorLib.UseHealthRegenUtility(botBrain)
 	
 	local unitSelf = core.unitSelf
 	local nHealthMissing = unitSelf:GetMaxHealth() - unitSelf:GetHealth()
+	local nHealthRegen = unitSelf:GetHealthRegen()
 	local nManaMissing = unitSelf:GetMaxMana() - unitSelf:GetMana()
+	local nManaRegen = unitSelf:GetManaRegen()
 	local tInventory = unitSelf:GetInventory()
 	StopProfile()
 
@@ -505,14 +533,14 @@ function behaviorLib.UseHealthRegenUtility(botBrain)
 	StartProfile("Health pot")
 	local tHealthPots = core.InventoryContains(tInventory, "Item_HealthPotion")
 	if #tHealthPots > 0 and not unitSelf:HasState("State_HealthPotion") then
-		nHealthPotUtility = behaviorLib.HealthPotUtilFn(nHealthMissing)
+		nHealthPotUtility = behaviorLib.HealthPotUtilFn(nHealthMissing, nHealthRegen)
 	end
 	StopProfile()
 
 	StartProfile("Runes")
 	local tBlights = core.InventoryContains(tInventory, "Item_RunesOfTheBlight")
 	if #tBlights > 0 and not unitSelf:HasState("State_RunesOfTheBlight") then
-		nBlightsUtility = behaviorLib.RunesOfTheBlightUtilFn(nHealthMissing)
+		nBlightsUtility = behaviorLib.RunesOfTheBlightUtilFn(nHealthMissing, nHealthRegen)
 	end
 	StopProfile()
 
@@ -520,7 +548,7 @@ function behaviorLib.UseHealthRegenUtility(botBrain)
 	if behaviorLib.bUseBottleForHealth then
 		local tItemBottle = core.InventoryContains(tInventory, "Item_Bottle")
 		if #tItemBottle > 0 and not unitSelf:HasState("State_Bottle") and tItemBottle[1]:GetActiveModifierKey() ~= "bottle_empty" then
-			nBottleUtility = behaviorLib.BottleHealthUtilFn(nHealthMissing) * .7 + behaviorLib.BottleManaUtilFn(nManaMissing) * .3
+			nBottleUtility = behaviorLib.BottleHealthUtilFn(nHealthMissing, nHealthRegen) * .7 + behaviorLib.BottleManaUtilFn(nManaMissing, nManaRegen) * .3
 		end
 	end
 	StopProfile()
@@ -670,11 +698,12 @@ behaviorLib.bUseBottleForMana = false
 behaviorLib.bUseBatterySupplyForMana = true
 
 -------- Helper Functions --------
-function behaviorLib.ManaPotUtilFn(nManaMissing)
+function behaviorLib.ManaPotUtilFn(nManaMissing, nManaRegen)
 	-- Roughly 20+ when we are missing 100 mana
 	-- Function which crosses 20 at x=100 and 30 at x=600, convex down
 
 	local nManaRegenAmount = 100
+	local nManaBuffer = nManaRegen * 20
 	local nUtilityThreshold = 20
 	
 	local vecPoint = Vector3.Create(nManaRegenAmount, nUtilityThreshold)
@@ -694,7 +723,9 @@ function behaviorLib.UseManaRegenUtility(botBrain)
 	
 	local unitSelf = core.unitSelf
 	local nHealthMissing = unitSelf:GetMaxHealth() - unitSelf:GetHealth()
+	local nHealthRegen = unitSelf:GetHealthRegen()
 	local nManaMissing = unitSelf:GetMaxMana() - unitSelf:GetMana()
+	local nManaRegen = unitSelf:GetManaRegen()
 	local tInventory = unitSelf:GetInventory()
 	StopProfile()
 
@@ -713,7 +744,7 @@ function behaviorLib.UseManaRegenUtility(botBrain)
 	StartProfile("Mana pot")
 	local tManaPots = core.InventoryContains(tInventory, "Item_ManaPotion")
 	if #tManaPots > 0 and not unitSelf:HasState("State_ManaPotion") then
-		nManaPotUtility = behaviorLib.ManaPotUtilFn(nManaMissing)
+		nManaPotUtility = behaviorLib.ManaPotUtilFn(nManaMissing, nManaRegen)
 	end
 	StopProfile()
 
@@ -721,7 +752,7 @@ function behaviorLib.UseManaRegenUtility(botBrain)
 	if behaviorLib.bUseBottleForMana then
 		local tItemBottle = core.InventoryContains(tInventory, "Item_Bottle")
 		if #tItemBottle > 0 and not unitSelf:HasState("State_Bottle") and tItemBottle[1]:GetActiveModifierKey() ~= "bottle_empty" then
-			nBottleUtility = behaviorLib.BottleManaUtilFn(nManaMissing) * .7 + behaviorLib.BottleHealthUtilFn(nHealthMissing) * .3
+			nBottleUtility = behaviorLib.BottleManaUtilFn(nManaMissing, nManaRegen) * .7 + behaviorLib.BottleHealthUtilFn(nHealthMissing, nHealthRegen) * .3
 		end
 	end
 	StopProfile()

@@ -154,7 +154,7 @@ local function funcFindItemsOverride(botBrain)
 		for slot = 1, 12, 1 do
 			local curItem = inventory[slot]
 			if curItem then
-				if core.itemSteamboots == nill and curItem:GetName() == "Item_Steamboots" then
+				if core.itemSteamboots == nil and curItem:GetName() == "Item_Steamboots" then
 					core.itemSteamboots = core.WrapInTable(curItem)
 				end
 			end
@@ -176,19 +176,23 @@ function object:onthinkOverride(tGameVariables)
 	local itemSteamboots = core.itemSteamboots
 	if itemSteamboots and itemSteamboots:CanActivate() then
 		local unitSelf = core.unitSelf
+		local nHealthPercent = unitSelf:GetHealthPercent()
+		local nManaPercent = unitSelf:GetManaPercent()
 		local sKey = itemSteamboots:GetActiveModifierKey()
 		if sKey == "str" then
 			-- Toggle away from STR if health is high enough
-			if unitSelf:GetHealthPercent() > .575 then
-				core.OrderItem(itemSteamboots)
+			if nHealthPercent > .65 then
+				self:OrderItem(itemSteamboots.object, false)
 			end
 		elseif sKey == "agi" then
-			-- Always toggle past AGI
-			core.OrderItem(itemSteamboots)
+			-- Toggle away from AGI if health or mana is low
+			if nHealthPercent < .45 or nManaPercent < .6 then
+				self:OrderItem(itemSteamboots.object, false)
+			end
 		elseif sKey == "int" then
-			-- Toggle away from INT if health gets too low
-			if unitSelf:GetHealthPercent() < .375 then
-				core.OrderItem(itemSteamboots)
+			-- Toggle away from INT if health gets too low or mana is close to full
+			if nHealthPercent < .45 or nManaPercent > .85 then
+				self:OrderItem(itemSteamboots.object, false)
 			end
 		end
 	end
@@ -376,6 +380,49 @@ local function getStepDirection(botBrain, unitTarget)
 	return vecDirection
 end
 
+----------------------------------------------
+--          Illusory Assault Logic          --
+----------------------------------------------
+
+local function getAssaultDamage()
+	local nSkillLevel = skills.abilAssault:GetLevel()
+
+	if nSkillLevel == 1 then
+		return 200
+	elseif nSkillLevel == 2 then
+		return 360
+	elseif nSkillLevel == 3 then
+		return 560
+	else
+		return nil
+	end
+end
+
+-----------------------------------
+--          Combo Logic          --
+-----------------------------------
+
+local function getComboManaCost()
+	local nCost = 0
+
+	local abilStalk = skills.abilStalk
+	if abilStalk:CanActivate() then
+		nCost = nCost + abilStalk:GetManaCost() * abilStalk:GetCharges()
+	end
+	
+	local abilStep = skills.abilStep
+	if abilStep:CanActivate() then
+		nCost = nCost + abilStep:GetManaCost()
+	end
+	
+	local abilAssault = skills.abilAssault
+	if abilAssault:CanActivate() then
+		nCost = nCost + abilAssault:GetManaCost()
+	end
+	
+	return nCost
+end
+
 ---------------------------------------
 --          Harass Behavior          --
 ---------------------------------------
@@ -393,6 +440,10 @@ local function HarassHeroExecuteOverride(botBrain)
 	local vecTargetPosition = unitTarget:GetPosition()
 	local nTargetDistanceSq = Vector3.Distance2DSq(vecMyPosition, vecTargetPosition)
 	local bCanSeeTarget = core.CanSeeUnit(botBrain, unitTarget)
+	local nTargetPhysicalEHP = nil
+	if bCanSeeTarget then
+		nTargetPhysicalEHP = unitTarget:GetHealth() / (1 - unitTarget:GetPhysicalResistance())
+	end
 	
 	local nLastHarassUtility = behaviorLib.lastHarassUtil
 	local bActionTaken = false
@@ -410,24 +461,18 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Rift Stalk (Out of Shadow Step range)
 	if not bActionTaken then
 		local abilStalk = skills.abilStalk
-		if abilStalk:CanActivate() and nLastHarassUtility > object.nStalkThreshold then
-			-- Only use if the enemy is far away and the bot has follow up mana,
-			-- or the target is at critical health levels
-			if (nTargetDistanceSq > (450 * 450) and (unitSelf:GetManaPercent() > .35) or unitTarget:GetHealthPercent() < .125) then
-				bActionTaken = core.OrderAbility(botBrain, abilStalk)
-			end
+		if abilStalk:CanActivate() and nLastHarassUtility > object.nStalkThreshold and bCanSeeTarget and ((nTargetDistanceSq > (450 * 450) and unitSelf:GetMana() > getComboManaCost()) or nTargetPhysicalEHP < (core.GetFinalAttackDamageAverage(unitSelf) * 2)) then
+			bActionTaken = core.OrderAbility(botBrain, abilStalk)
 		end
 	end
 	
 	-- Shadow Step
 	if not bActionTaken then
 		local abilStep = skills.abilStep
-		if abilStep:CanActivate() and bCanSeeTarget and not unitTarget:IsStunned() and nLastHarassUtility > object.nStepThreshold then
-			if nTargetDistanceSq < (450 * 450) then
-				local vecPushDirection = getStepDirection(botBrain, unitTarget)
-				if vecPushDirection then
-					-- bActionTaken = core.OrderAbilityEntity(botBrain, abilStep)
-				end
+		if abilStep:CanActivate() and bCanSeeTarget and not unitTarget:IsStunned() and nLastHarassUtility > object.nStepThreshold and nTargetDistanceSq < (450 * 450) then
+			local vecPushDirection = getStepDirection(botBrain, unitTarget)
+			if vecPushDirection then
+				bActionTaken = core.OrderAbilityEntityVector(botBrain, abilStep, unitTarget, vecPushDirection * 100)
 			end
 		end
 	end	
@@ -435,11 +480,8 @@ local function HarassHeroExecuteOverride(botBrain)
 	-- Illusory Assault
 	if not bActionTaken then
 		local abilAssault = skills.abilAssault
-		if abilAssault:CanActivate() and nLastHarassUtility > object.nAssaultThreshold then
-			-- Only use if target is close to melee range
-			if nTargetDistanceSq < (300 * 300) then
-				bActionTaken = core.OrderAbility(botBrain, abilAssault)
-			end
+		if abilAssault:CanActivate() and nLastHarassUtility > object.nAssaultThreshold and (nTargetDistanceSq < (300 * 300) or (nTargetDistanceSq < (1200 * 1200) and nTargetPhysicalEHP < getAssaultDamage())) then
+			bActionTaken = core.OrderAbility(botBrain, abilAssault)
 		end
 	end
 	
@@ -509,8 +551,7 @@ behaviorLib.HealAtWellBehavior["Execute"] = HealAtWellOveride
 --          AttackCreepsExecute Override          --
 ----------------------------------------------------
 
--- Override to use Logger's hatchet
-local function attackCreepsExecuteOverride(botBrain)
+function attackCreepsExecuteOverride(botBrain)
 	local bActionTaken = false
 	local unitSelf = core.unitSelf
 	local unitTarget = core.unitCreepTarget
@@ -519,25 +560,25 @@ local function attackCreepsExecuteOverride(botBrain)
 	if not unitTarget or not core.CanSeeUnit(botBrain, unitTarget) then
 		return bActionTaken
 	end
-
+	
 	local vecTargetPos = unitTarget:GetPosition()
 	local nDistSq = Vector3.Distance2DSq(unitSelf:GetPosition(), vecTargetPos)
 	local nAttackRangeSq = core.GetAbsoluteAttackRangeToUnit(unitSelf, unitTarget, true)
-
+	
 	-- Attack creeps if they are in range
-	if not bActionTaken and nDistSq < nAttackRangeSq and unitSelf:IsAttackReady() then
+	if nDistSq < nAttackRangeSq and unitSelf:IsAttackReady() then
 		--only attack when in nRange, so not to aggro towers/creeps until necessary, and move forward when attack is on cd
 		bActionTaken = core.OrderAttackClamp(botBrain, unitSelf, unitTarget)
 	end
-
+	
 	-- Use Loggers Hatchet
 	if not bActionTaken then
 		local itemHatchet = core.itemHatchet
 		if itemHatchet and itemHatchet:CanActivate() and unitTarget:GetTeam() ~= unitSelf:GetTeam() and string.find(unitTarget:GetTypeName(), "Creep") and core.GetAttackSequenceProgress(unitSelf) ~= "windup" and nDistSq < 600 * 600 then
-			bActionTaken = core.OrderItemEntityClamp(botBrain, unitSelf, itemHatchet, unitTarget)
+			bActionTaken = botBrain:OrderItemEntity(itemHatchet or itemHatchet.object, unitTarget or unitTarget.object, false)
 		end
 	end
-
+	
 	-- Move towards creeps if out of range
 	if not bAtionTaken then
 		local vecDesiredPos = core.AdjustMovementForTowerLogic(vecTargetPos)
@@ -545,7 +586,7 @@ local function attackCreepsExecuteOverride(botBrain)
 			bActionTaken = core.OrderMoveToPosClamp(botBrain, unitSelf, vecDesiredPos, false)
 		end
 	end
-
+	
 	return bActionTaken
 end
 
