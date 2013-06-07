@@ -414,14 +414,14 @@ end
 
 function behaviorLib.BatterySupplyHealthUtilFn(nHealthMissing, nCharges)
 	-- With 1 Charge:
-	-- Roughly 20+ when we are missing 28 health
-	-- Function which crosses 20 at x=28 and 40 at x=300, convex down
+	-- Roughly 20+ when we are missing 30 health
+	-- Function which crosses 20 at x=30 and 30 at x=140, convex down
 	-- With 15 Charges:
-	-- Roughly 20+ when we are missing 168 health
-	-- Function which crosses 20 at x=168 and 30 at x=320, convex down
+	-- Roughly 20+ when we are missing 170 health
+	-- Function which crosses 20 at x=170 and 30 at x=330, convex down
 	
 	local nHealAmount = 10 * nCharges
-	local nHealBuffer = 18
+	local nHealBuffer = 20
 	local nUtilityThreshold = 20
 		
 	local vecPoint = Vector3.Create(nHealAmount + nHealBuffer, nUtilityThreshold)
@@ -432,7 +432,7 @@ end
 function behaviorLib.BatterySupplyManaUtilFn(nManaMissing, nCharges)
 	-- With 1 Charge:
 	-- Roughly 20+ when we are missing 40 mana
-	-- Function which crosses 20 at x=40 and 40 at x=260, convex down
+	-- Function which crosses 20 at x=40 and 30 at x=100, convex down
 	-- With 15 Charges:
 	-- Roughly 20+ when we are missing 280 mana
 	-- Function which crosses 20 at x=280 and 30 at x=470, convex down
@@ -447,8 +447,8 @@ function behaviorLib.BatterySupplyManaUtilFn(nManaMissing, nCharges)
 end
 
 function behaviorLib.RunesOfTheBlightUtilFn(nHealthMissing, nHealthRegen)
-	-- Roughly 20+ when we are missing 138 hp
-	-- Function which crosses 20 at x=138 and is 30 at roughly x=600, convex down
+	-- Roughly 20+ when we are missing 115 hp
+	-- Function which crosses 20 at x=115 and is 30 at roughly x=600, convex down
 
 	local nHealAmount = 115
 	local nHealBuffer = nHealthRegen * 16
@@ -473,28 +473,28 @@ function behaviorLib.HealthPotUtilFn(nHealthMissing, nHealthRegen)
 end
 
 function behaviorLib.BottleHealthUtilFn(nHealthMissing, nHealthRegen)
-	-- Roughly 20+ when we are missing 195 hp
-	-- Function which crosses 20 at x=195 and 30 at x=230, convex down
+	-- Roughly 20+ when we are missing 135 hp
+	-- Function which crosses 20 at x=135 and 30 at x=220, convex down
 
 	local nHealAmount = 135
 	local nHealBuffer = nHealthRegen * 3
 	local nUtilityThreshold = 20
 
 	local vecPoint = Vector3.Create(nHealAmount + nHealBuffer, nUtilityThreshold)
-	local vecOrigin = Vector3.Create(100, -30)
+	local vecOrigin = Vector3.Create(-100, -30)
 	return core.ATanFn(nHealthMissing, vecPoint, vecOrigin, 100)
 end
 
 function behaviorLib.BottleManaUtilFn(nManaMissing, nManaRegen)
-	-- Roughly 20+ when we are missing 145 mana
-	-- Function which crosses 20 at x=145 and 30 at x=170, convex down
+	-- Roughly 20+ when we are missing 70 mana
+	-- Function which crosses 20 at x=70 and 30 at x=140, convex down
 
 	local nManaRegenAmount = 70
 	local nManaBuffer = nManaRegen * 3
 	local nUtilityThreshold = 20
 	
 	local vecPoint = Vector3.Create(nManaRegenAmount + nManaBuffer, nUtilityThreshold)
-	local vecOrigin = Vector3.Create(75, -30)
+	local vecOrigin = Vector3.Create(-125, -30)
 	return core.ATanFn(nManaMissing, vecPoint, vecOrigin, 100)
 end
 
@@ -700,14 +700,14 @@ behaviorLib.bUseBatterySupplyForMana = true
 -------- Helper Functions --------
 function behaviorLib.ManaPotUtilFn(nManaMissing, nManaRegen)
 	-- Roughly 20+ when we are missing 100 mana
-	-- Function which crosses 20 at x=100 and 30 at x=600, convex down
+	-- Function which crosses 20 at x=100 and 30 at x=200, convex down
 
 	local nManaRegenAmount = 100
 	local nManaBuffer = nManaRegen * 20
 	local nUtilityThreshold = 20
 	
 	local vecPoint = Vector3.Create(nManaRegenAmount, nUtilityThreshold)
-	local vecOrigin = Vector3.Create(-1000, -15)
+	local vecOrigin = Vector3.Create(-100, -45)
 	return core.ATanFn(nManaMissing, vecPoint, vecOrigin, 100)
 end
 
