@@ -316,7 +316,7 @@ function behaviorLib.AttackCreepsExecute(botBrain)
 	if not bActionTaken then
 		local itemHatchet = core.itemHatchet
 		if itemHatchet and itemHatchet:CanActivate() and unitTarget:GetTeam() ~= unitSelf:GetTeam() and string.find(unitTarget:GetTypeName(), "Creep") and core.GetAttackSequenceProgress(unitSelf) ~= "windup" and nDistSq < 600 * 600 then
-			bActionTaken = botBrain:OrderItemEntity(itemHatchet or itemHatchet.object, unitTarget or unitTarget.object, false)
+			bActionTaken = botBrain:OrderItemEntity(itemHatchet.object or itemHatchet, unitTarget.object or unitTarget, false)
 		end
 	end
 	
@@ -374,7 +374,7 @@ function behaviorLib.GetSafeDrinkDirection()
 		if nDist < nAbsRange + 200 then
 			local tUnitRangePair = {}
 			tUnitRangePair[1] = unitEnemy
-			tUnitRangePair[2] = (nAbsRange + 200 - nDist)
+			tUnitRangePair[2] = (nAbsRange + 325 - nDist)
 			tinsert(tThreateningUnits, tUnitRangePair)
 		end
 	end
@@ -462,7 +462,7 @@ end
 function behaviorLib.HealthPotUtilFn(nHealthMissing, nHealthRegen)
 	-- Roughly 20+ when we are missing 400 hp
 	-- Function which crosses 20 at x=400 and 40 at x=650, convex down
-	
+
 	local nHealAmount = 400
 	local nHealBuffer = nHealthRegen * 10
 	local nUtilityThreshold = 20
@@ -475,7 +475,7 @@ end
 function behaviorLib.BottleHealthUtilFn(nHealthMissing, nHealthRegen)
 	-- Roughly 20+ when we are missing 135 hp
 	-- Function which crosses 20 at x=135 and 30 at x=220, convex down
-
+	
 	local nHealAmount = 135
 	local nHealBuffer = nHealthRegen * 3
 	local nUtilityThreshold = 20
@@ -694,7 +694,7 @@ behaviorLib.nManaPotUtility = 0
 behaviorLib.nBottleManaUtility = 0
 behaviorLib.nBatterySupplyManaUtility = 0
 
-behaviorLib.bUseBottleForMana = false
+behaviorLib.bUseBottleForMana = true
 behaviorLib.bUseBatterySupplyForMana = true
 
 -------- Helper Functions --------
