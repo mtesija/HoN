@@ -13,21 +13,22 @@ behaviorLib.bCheckPorting = true
 behaviorLib.bLastPortResult = false
 
 -------- Helper Functions --------
-function core.GetClosestTeleportUnit(botBrain, vecPosition)
-	local unitBuilding = core.GetClosestTeleportBuilding(vecPosition)
+function core.GetClosestTeleportUnit(vecDesiredPosition)
+	local unitBuilding = core.GetClosestTeleportBuilding(vecDesiredPosition)
 	local vecBuildingPosition = unitBuilding:GetPosition()
-	local nDistance = Vector3.Distance2D(vecBuildingPosition, vecPosition)
+	local nDistance = Vector3.Distance2D(vecBuildingPosition, vecDesiredPosition)
 	local nDistancePositionToTowerSq = nDistance * nDistance
 
 	local unitTarget = nil
 	local nBestDistanceSq = nDistancePositionToTowerSq
-	core.AssessLocalUnits(botBrain, vecPosition, nDistance)
-	for _, unitCreep in pairs(core.localUnits["AllyCreeps"]) do
-		if unitCreep:GetHealth() > unitCreep:GetMaxHealth() * .8 then
+	local tPortTargets = HoN.GetUnitsInRadius(vecDesiredPosition, nDistance, core.UNIT_MASK_ALIVE + core.UNIT_MASK_UNIT)
+	for _, unitCreep in pairs(tPortTargets) do
+		if unitCreep:GetTeam() == core.myTeam and string.find(unitCreep:GetTypeName(), "Creep") and unitCreep:GetHealth() > (unitCreep:GetMaxHealth() * .8) then
 			local vecCreepPosition = unitCreep:GetPosition()
 			if Vector3.Distance2DSq(vecCreepPosition, vecBuildingPosition) < nDistancePositionToTowerSq then
-				local nDistanceCreepToPositionSq = Vector3.Distance2DSq(vecCreepPosition, vecPosition)
-				if nDistanceCreepToPositionSq > nBestDistanceSq then
+				-- Only consider creeps between the closest building and the desired position
+				local nDistanceCreepToPositionSq = Vector3.Distance2DSq(vecCreepPosition, vecDesiredPosition)
+				if nDistanceCreepToPositionSq < nBestDistanceSq then
 					nBestDistanceSq = nDistanceCreepToPositionSq
 					unitTarget = unitCreep
 				end
@@ -61,7 +62,7 @@ function behaviorLib.ShouldPort(botBrain, vecDesiredPosition)
 		local tPostHaste = core.InventoryContains(tInventory, idefPostHaste:GetName(), true)
 		if #tPostHaste > 0 then
 			itemPort = tPostHaste[1]
-			unitTarget = core.GetClosestTeleportUnit(botBrain, vecDesiredPosition)
+			unitTarget = core.GetClosestTeleportUnit(vecDesiredPosition)
 
 			if bDebugEchos then
 				BotEcho("  unitTarget: "..(unitTarget and unitTarget:GetTypeName() or "nil")) 
