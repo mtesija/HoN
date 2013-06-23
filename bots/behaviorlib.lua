@@ -363,54 +363,44 @@ behaviorLib.safeTreeAngle = 120
 
 -------- Helper Functions --------
 function behaviorLib.GetSafeDrinkDirection()
-	-- Returns vector to a safe direciton to retreat to drink if the bot is threatened
-	-- Returns nil if safe
-	local bDebugLines = false
-	local vecSafeDirection = nil
-	local vecSelfPos = core.unitSelf:GetPosition()
-	local tThreateningUnits = {}
-	for _, unitEnemy in pairs(core.localUnits["EnemyUnits"]) do
-		local nAbsRange = core.GetAbsoluteAttackRangeToUnit(unitEnemy, unitSelf)
-		local nDist = Vector3.Distance2D(vecSelfPos, unitEnemy:GetPosition())
-		if nDist < nAbsRange + 200 then
-			local tUnitRangePair = {}
-			tUnitRangePair[1] = unitEnemy
-			tUnitRangePair[2] = (nAbsRange + 325 - nDist)
-			tinsert(tThreateningUnits, tUnitRangePair)
-		end
-	end
-
-	local curTimeMS = HoN.GetGameTime()
-	if core.NumberElements(tThreateningUnits) > 0 or eventsLib.recentDotTime > curTimeMS or #eventsLib.incomingProjectiles["all"] > 0 then
-		-- Determine best "away from threat" vector
-		local vecAway = Vector3.Create()
-		for _, tUnitRangePair in pairs(tThreateningUnits) do
-			local vecAwayFromTarget = Vector3.Normalize(vecSelfPos - tUnitRangePair[1]:GetPosition())
-			vecAway = vecAway + vecAwayFromTarget * tUnitRangePair[2]
-
-			if bDebugLines then
-				core.DrawDebugArrow(tUnitRangePair[1]:GetPosition(), tUnitRangePair[1]:GetPosition() + vecAwayFromTarget * tUnitRangePair[2], 'teal')
-			end
-		end
-
-		if core.NumberElements(tThreateningUnits) > 0 then
-			vecAway = Vector3.Normalize(vecAway)
-		end
-
-		-- Average vecAway with "retreat" vector
-		local vecRetreat = Vector3.Normalize(behaviorLib.PositionSelfBackUp() - vecSelfPos)
-		local vecSafeDirection = Vector3.Normalize(vecAway + vecRetreat)
-
-		if bDebugLines then
-			local nLineLen = 150
-			core.DrawDebugArrow(vecSelfPos, vecSelfPos + vecRetreat * nLineLen, 'blue')
-			core.DrawDebugArrow(vecSelfPos, vecSelfPos + vecAway * nLineLen, 'teal')
-			core.DrawDebugArrow(vecSelfPos, vecSelfPos + vecSafeDirection * nLineLen, 'white')
-			core.DrawXPosition(vecSelfPos + vecSafeDirection * core.moveVecMultiplier, 'blue')
-		end
-	end
-
-	return vecSafeDirection
+        -- Returns vector to a safe direciton to retreat to drink if the bot is threatened
+        -- Returns nil if safe
+        local vecSafeDirection = nil
+        local vecSelfPos = core.unitSelf:GetPosition()
+        local tThreateningUnits = {}
+        local tAwayFromThreatValues = {}
+        for _, unitEnemy in pairs(core.localUnits["EnemyUnits"]) do
+                local nAbsRange = core.GetAbsoluteAttackRangeToUnit(unitEnemy, unitSelf) + 325
+                local nAbsRangeSq = nAbsRange * nAbsRange
+                local nDistSq = Vector3.Distance2DSq(vecSelfPos, unitEnemy:GetPosition())
+                if nDistSq < nAbsRangeSq then
+                        tinsert(tThreateningUnits, unitEnemy)
+                        tinsert(tAwayFromThreatValues, nAbsRange)
+                end
+        end
+ 
+        local curTimeMS = HoN.GetGameTime()
+        local nThreateningUnits = core.NumberElements(tThreateningUnits)
+        if nThreateningUnits > 0 or eventsLib.recentDotTime > curTimeMS or #eventsLib.incomingProjectiles["all"] > 0 then
+                -- Determine best "away from threat" vector
+                local vecAway = Vector3.Create()
+                for nIndex, unitEnemy in pairs(tThreateningUnits) do
+                        local vecAwayFromTarget = Vector3.Normalize(vecSelfPos - unitEnemy:GetPosition())
+                        vecAway = vecAway + vecAwayFromTarget * tAwayFromThreatValues[nIndex]
+                end
+ 
+                if nThreateningUnits > 0 then
+                        local vecThreatCenter = core.GetGroupCenter(tThreateningUnits)
+                        vecAway = vecAway - (vecSelfPos - vecThreatCenter) * nThreateningUnits
+                        vecAway = Vector3.Normalize(vecAway)
+                end
+ 
+                -- Average vecAway with "retreat" vector
+                local vecRetreat = Vector3.Normalize(behaviorLib.PositionSelfBackUp() - vecSelfPos)
+                local vecSafeDirection = Vector3.Normalize(vecAway + vecRetreat)
+        end
+       
+        return vecSafeDirection
 end
 
 function behaviorLib.BatterySupplyHealthUtilFn(nHealthMissing, nCharges)
