@@ -409,10 +409,10 @@ function behaviorLib.GetSafeDrinkDirection()
 	return vecSafeDirection
 end
 
-function behaviorLib.GetBatterySupplyFromInventory()
+function behaviorLib.GetBatterySupplyFromInventory(tInventory)
 	-- Returns Mana Battery or Power Supply if they are in the bot's inventory
 	-- else returns nil
-	
+
 	local tManaBattery = core.InventoryContains(tInventory, "Item_ManaBattery")
 	local tPowerSupply = core.InventoryContains(tInventory, "Item_PowerSupply")
 	if #tManaBattery > 0 then
@@ -532,7 +532,7 @@ function behaviorLib.UseHealthRegenUtility(botBrain)
 
 	StartProfile("Mana Battery/Power Supply")
 	if behaviorLib.bUseBatterySupplyForHealth then
-		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory()
+		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory(tInventory)
 		if itemBatterySupply and itemBatterySupply:CanActivate() then
 			local nCharges = itemBatterySupply:GetCharges()
 			if nCharges > 0 then
@@ -674,7 +674,7 @@ function behaviorLib.UseHealthRegenExecute(botBrain)
 	
 	-- Use Mana Battery/Power Supply to heal
 	if not bActionTaken and behaviorLib.nBatterySupplyHealthUtility == nMaxUtility then
-		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory()
+		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory(tInventory)
 		if itemBatterySupply and itemBatterySupply:CanActivate() and itemBatterySupply:GetCharges() > 0 then
 			bActionTaken = core.OrderItemClamp(botBrain, unitSelf, itemBatterySupply)
 		end
@@ -743,7 +743,7 @@ function behaviorLib.UseManaRegenUtility(botBrain)
 
 	StartProfile("Mana Battery/Power Supply")
 	if behaviorLib.bUseBatterySupplyForMana then
-		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory()
+		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory(tInventory)
 		if itemBatterySupply and itemBatterySupply:CanActivate() then
 			local nCharges = itemBatterySupply:GetCharges()
 			if nCharges > 0 then
@@ -827,7 +827,7 @@ function behaviorLib.UseManaRegenExecute(botBrain)
 	
 	-- Use Mana Battery/Power Supply to regen mana
 	if not bActionTaken and behaviorLib.nBatterySupplyManaUtility == nMaxUtility then
-		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory()
+		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory(tInventory)
 		if itemBatterySupply and itemBatterySupply:CanActivate() and itemBatterySupply:GetCharges() > 0 then
 			bActionTaken = core.OrderItemClamp(botBrain, unitSelf, itemBatterySupply)
 		end
