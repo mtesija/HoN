@@ -363,44 +363,65 @@ behaviorLib.safeTreeAngle = 120
 
 -------- Helper Functions --------
 function behaviorLib.GetSafeDrinkDirection()
-        -- Returns vector to a safe direciton to retreat to drink if the bot is threatened
-        -- Returns nil if safe
-        local vecSafeDirection = nil
-        local vecSelfPos = core.unitSelf:GetPosition()
-        local tThreateningUnits = {}
-        local tAwayFromThreatValues = {}
-        for _, unitEnemy in pairs(core.localUnits["EnemyUnits"]) do
-                local nAbsRange = core.GetAbsoluteAttackRangeToUnit(unitEnemy, unitSelf) + 325
-                local nAbsRangeSq = nAbsRange * nAbsRange
-                local nDistSq = Vector3.Distance2DSq(vecSelfPos, unitEnemy:GetPosition())
-                if nDistSq < nAbsRangeSq then
-                        tinsert(tThreateningUnits, unitEnemy)
-                        tinsert(tAwayFromThreatValues, nAbsRange)
-                end
-        end
- 
-        local curTimeMS = HoN.GetGameTime()
-        local nThreateningUnits = core.NumberElements(tThreateningUnits)
-        if nThreateningUnits > 0 or eventsLib.recentDotTime > curTimeMS or #eventsLib.incomingProjectiles["all"] > 0 then
-                -- Determine best "away from threat" vector
-                local vecAway = Vector3.Create()
-                for nIndex, unitEnemy in pairs(tThreateningUnits) do
-                        local vecAwayFromTarget = Vector3.Normalize(vecSelfPos - unitEnemy:GetPosition())
-                        vecAway = vecAway + vecAwayFromTarget * tAwayFromThreatValues[nIndex]
-                end
- 
-                if nThreateningUnits > 0 then
-                        local vecThreatCenter = core.GetGroupCenter(tThreateningUnits)
-                        vecAway = vecAway - (vecSelfPos - vecThreatCenter) * nThreateningUnits
-                        vecAway = Vector3.Normalize(vecAway)
-                end
- 
-                -- Average vecAway with "retreat" vector
-                local vecRetreat = Vector3.Normalize(behaviorLib.PositionSelfBackUp() - vecSelfPos)
-                local vecSafeDirection = Vector3.Normalize(vecAway + vecRetreat)
-        end
-       
-        return vecSafeDirection
+	-- Returns vector to a safe direciton to retreat to drink if the bot is threatened
+	-- Returns nil if safe
+	local vecSafeDirection = nil
+	local unitSelf = core.unitSelf
+	local vecSelfPos = unitSelf:GetPosition()
+	local nMyID = unitSelf:GetUniqueID()
+	local tThreateningUnits = {}
+	local tAwayFromThreatValues = {}
+	for _, unitEnemy in pairs(core.localUnits["EnemyUnits"]) do
+		-- Ignore creeps that are already attacking something
+		local unitEnemyTarget = unitEnemy:GetAttackTarget()
+		if not (string.find(unitEnemy:GetTypeName(), "Creep") and unitEnemyTarget and unitEnemyTarget:GetUniqueID() ~= nMyID) then
+			local nAbsRange = core.GetAbsoluteAttackRangeToUnit(unitEnemy, unitSelf) + 325
+			local nAbsRangeSq = nAbsRange * nAbsRange
+			local nDistSq = Vector3.Distance2DSq(vecSelfPos, unitEnemy:GetPosition())
+			if nDistSq < nAbsRangeSq then
+				tinsert(tThreateningUnits, unitEnemy)
+				tinsert(tAwayFromThreatValues, nAbsRange)
+			end
+		end
+	end
+
+	local curTimeMS = HoN.GetGameTime()
+	local nThreateningUnits = core.NumberElements(tThreateningUnits)
+	if nThreateningUnits > 0 or eventsLib.recentDotTime > curTimeMS or #eventsLib.incomingProjectiles["all"] > 0 then
+		-- Determine best "away from threat" vector
+		local vecAway = Vector3.Create()
+		for nIndex, unitEnemy in pairs(tThreateningUnits) do
+			local vecAwayFromTarget = Vector3.Normalize(vecSelfPos - unitEnemy:GetPosition())
+			vecAway = vecAway + vecAwayFromTarget * tAwayFromThreatValues[nIndex]
+		end
+
+		if nThreateningUnits > 0 then
+			local vecThreatCenter = core.GetGroupCenter(tThreateningUnits)
+			vecAway = vecAway - (vecSelfPos - vecThreatCenter) * nThreateningUnits
+			vecAway = Vector3.Normalize(vecAway)
+		end
+
+		-- Average vecAway with "retreat" vector
+		local vecRetreat = Vector3.Normalize(behaviorLib.PositionSelfBackUp() - vecSelfPos)
+		local vecSafeDirection = Vector3.Normalize(vecAway + vecRetreat)
+	end
+
+	return vecSafeDirection
+end
+
+function behaviorLib.GetBatterySupplyFromInventory()
+	-- Returns Mana Battery or Power Supply if they are in the bot's inventory
+	-- else returns nil
+	
+	local tManaBattery = core.InventoryContains(tInventory, "Item_ManaBattery")
+	local tPowerSupply = core.InventoryContains(tInventory, "Item_PowerSupply")
+	if #tManaBattery > 0 then
+		return tManaBattery[1]
+	elseif #tPowerSupply > 0 then
+		return tPowerSupply[1]
+	end
+	
+	return nil
 end
 
 function behaviorLib.BatterySupplyHealthUtilFn(nHealthMissing, nCharges)
@@ -511,7 +532,7 @@ function behaviorLib.UseHealthRegenUtility(botBrain)
 
 	StartProfile("Mana Battery/Power Supply")
 	if behaviorLib.bUseBatterySupplyForHealth then
-		local itemBatterySupply = core.itemManaBattery or core.itemPowerSupply
+		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory()
 		if itemBatterySupply and itemBatterySupply:CanActivate() then
 			local nCharges = itemBatterySupply:GetCharges()
 			if nCharges > 0 then
@@ -653,7 +674,7 @@ function behaviorLib.UseHealthRegenExecute(botBrain)
 	
 	-- Use Mana Battery/Power Supply to heal
 	if not bActionTaken and behaviorLib.nBatterySupplyHealthUtility == nMaxUtility then
-		local itemBatterySupply = core.itemManaBattery or core.itemPowerSupply
+		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory()
 		if itemBatterySupply and itemBatterySupply:CanActivate() and itemBatterySupply:GetCharges() > 0 then
 			bActionTaken = core.OrderItemClamp(botBrain, unitSelf, itemBatterySupply)
 		end
@@ -722,7 +743,7 @@ function behaviorLib.UseManaRegenUtility(botBrain)
 
 	StartProfile("Mana Battery/Power Supply")
 	if behaviorLib.bUseBatterySupplyForMana then
-		local itemBatterySupply = core.itemManaBattery or core.itemPowerSupply
+		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory()
 		if itemBatterySupply and itemBatterySupply:CanActivate() then
 			local nCharges = itemBatterySupply:GetCharges()
 			if nCharges > 0 then
@@ -806,7 +827,7 @@ function behaviorLib.UseManaRegenExecute(botBrain)
 	
 	-- Use Mana Battery/Power Supply to regen mana
 	if not bActionTaken and behaviorLib.nBatterySupplyManaUtility == nMaxUtility then
-		local itemBatterySupply = core.itemManaBattery or core.itemPowerSupply
+		local itemBatterySupply = behaviorLib.GetBatterySupplyFromInventory()
 		if itemBatterySupply and itemBatterySupply:CanActivate() and itemBatterySupply:GetCharges() > 0 then
 			bActionTaken = core.OrderItemClamp(botBrain, unitSelf, itemBatterySupply)
 		end
