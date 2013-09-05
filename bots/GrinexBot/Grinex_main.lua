@@ -287,26 +287,83 @@ local function filterGroupRange(tGroup, vecCenter, nRange)
 end
 
 -- Cycles through the table to find the closest target to the position, then returns the direction to that target
+-- Used for casting entity vector skills towards a moving target
 local function getClosestUnitDirectionFromTable(vecPosition, tUnitTable)
 	local vecDirection = nil
 	local nDistanceSq = nil
 	local nBestDistanceSq = (350 * 350)
 	local vecTargetPosition = nil
 	local vecBestPosition = nil
+	local unitBestTarget = nil
 	for _, unitTarget in pairs(tUnitTable) do
 		vecTargetPosition = unitTarget:GetPosition()
 		nDistanceSq = Vector3.Distance2DSq(vecPosition, vecTargetPosition)
 		if nDistanceSq <= nBestDistanceSq and nDistanceSq ~= 0 then
 			vecBestPosition = vecTargetPosition
 			nBestDistanceSq = nDistanceSq
+			unitBestTarget = unitTarget
 		end
 	end
 
-	if vecBestPosition then
-		vecDirection = Vector3.Normalize(vecBestPosition - vecPosition)
+	if vecBestPosition and unitBestTarget then
+		-- No prediction for easy mode bots
+		if core.nDifficulty == core.nEASY_DIFFCULTY then
+			vecDirection = Vector3.Normalize(vecBestPosition - vecPosition)
+		else
+			
+			
+			
+			
+			
+			vecDirection = Vector3.Normalize(vecBestPosition - vecPosition)
+			
+		
+		
+			
+		end
 	end
 	
 	return vecDirection
+end
+
+-- Cycles through the table to find the closest target to the position, then returns the direction to that target
+-- Used for casting entity vector skills towards a static target
+local function getClosestObjectDirectionFromTable(vecPosition, tObjectTable)
+	local vecDirection = nil
+	local nDistanceSq = nil
+	local nBestDistanceSq = (350 * 350)
+	local vecTargetPosition = nil
+	local vecBestPosition = nil
+	local unitBestTarget = nil
+	for _, unitObject in pairs(tObjectTable) do
+		vecTargetPosition = unitObject:GetPosition()
+		nDistanceSq = Vector3.Distance2DSq(vecPosition, vecTargetPosition)
+		if nDistanceSq <= nBestDistanceSq and nDistanceSq ~= 0 then
+			vecBestPosition = vecTargetPosition
+			nBestDistanceSq = nDistanceSq
+			unitBestTarget = unitTarget
+		end
+	end
+
+	if vecBestPosition and unitBestTarget then
+		-- No prediction for easy mode bots
+		if core.nDifficulty == core.nEASY_DIFFCULTY then
+			vecDirection = Vector3.Normalize(vecBestPosition - vecPosition)
+		else
+			
+			
+			
+			
+			
+			vecDirection = Vector3.Normalize(vecBestPosition - vecPosition)
+			
+		
+		
+			
+		end
+	end
+	
+	return vecDirection	
 end
 
 -- Find the best direction to cast Shadow Step
@@ -336,7 +393,7 @@ local function getStepDirection(botBrain, unitTarget)
 		if not vecDirection then
 			local tLocalEnemyBuildings = filterGroupRange(tLocalUnits["EnemyBuildings"], vecTargetPosition, 350)
 			if core.NumberElements(tLocalEnemyBuildings) > 0 then
-				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalEnemyBuildings)
+				vecDirection = getClosestObjectDirectionFromTable(vecTargetPosition, tLocalEnemyBuildings)
 			end
 		end
 		
@@ -344,7 +401,7 @@ local function getStepDirection(botBrain, unitTarget)
 		if not vecDirection then
 			local tLocalAllyBuildings = filterGroupRange(tLocalUnits["AllyBuildings"], vecTargetPosition, 350)
 			if core.NumberElements(tLocalAllyBuildings) > 0 then
-				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalAllyBuildings)
+				vecDirection = getClosestObjectDirectionFromTable(vecTargetPosition, tLocalAllyBuildings)
 			end
 		end
 	end
@@ -354,7 +411,7 @@ local function getStepDirection(botBrain, unitTarget)
 		local tLocalTrees = HoN.GetTreesInRadius(vecTargetPosition, 350)
 		if tLocalTrees then
 			if core.NumberElements(tLocalTrees) > 0 then
-				vecDirection = getClosestUnitDirectionFromTable(vecTargetPosition, tLocalTrees)
+				vecDirection = getClosestObjectDirectionFromTable(vecTargetPosition, tLocalTrees)
 			end
 		end
 	end 
