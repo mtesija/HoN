@@ -94,9 +94,9 @@ object.nStrike4Up = 18
 
 -- Bonus agression points that are applied to the bot upon successfully using a skill/item
 
-object.nStepUse = 18
-object.nStalkUse = 12
-object.nAssaultUse = 40
+object.nStepUse = 26
+object.nStalkUse = 14
+object.nAssaultUse = 44
 
 -- Thresholds of aggression the bot must reach to use these abilities
 
@@ -140,10 +140,8 @@ end
 
 local function funcFindItemsOverride(botBrain)
 	local bUpdated = object.FindItemsOld(botBrain)
- 
-	if core.itemSteamboots ~= nil and not core.itemSteamboots:IsValid() then
-		core.itemSteamboots = nil
-	end
+	
+	core.ValidateItem(core.itemSteamboots)
      
 	if bUpdated then
 		if core.itemSteamboots then
@@ -151,7 +149,7 @@ local function funcFindItemsOverride(botBrain)
 		end
 		 
 		local inventory = core.unitSelf:GetInventory(true)
-		for slot = 1, 12, 1 do
+		for slot = 1, 6, 1 do
 			local curItem = inventory[slot]
 			if curItem then
 				if core.itemSteamboots == nil and curItem:GetName() == "Item_Steamboots" then
@@ -289,7 +287,6 @@ end
 -- Cycles through the table to find the closest target to the position, then returns the direction to that target
 -- Used for casting entity vector skills towards a moving target
 local function getClosestUnitDirectionFromTable(vecPosition, tUnitTable)
-	local vecDirection = nil
 	local nDistanceSq = nil
 	local nBestDistanceSq = (350 * 350)
 	local vecTargetPosition = nil
@@ -308,14 +305,14 @@ local function getClosestUnitDirectionFromTable(vecPosition, tUnitTable)
 	if vecBestPosition and unitBestTarget then
 		-- No prediction for easy mode bots
 		if core.nDifficulty == core.nEASY_DIFFCULTY then
-			vecDirection = Vector3.Normalize(vecBestPosition - vecPosition)
+			return Vector3.Normalize(vecBestPosition - vecPosition)
 		else
 			
 			
 			
 			
 			
-			vecDirection = Vector3.Normalize(vecBestPosition - vecPosition)
+			return Vector3.Normalize(vecBestPosition - vecPosition)
 			
 		
 		
@@ -323,13 +320,12 @@ local function getClosestUnitDirectionFromTable(vecPosition, tUnitTable)
 		end
 	end
 	
-	return vecDirection
+	return nil
 end
 
 -- Cycles through the table to find the closest target to the position, then returns the direction to that target
 -- Used for casting entity vector skills towards a static target
 local function getClosestObjectDirectionFromTable(vecPosition, tObjectTable)
-	local vecDirection = nil
 	local nDistanceSq = nil
 	local nBestDistanceSq = (350 * 350)
 	local vecTargetPosition = nil
@@ -348,14 +344,14 @@ local function getClosestObjectDirectionFromTable(vecPosition, tObjectTable)
 	if vecBestPosition and unitBestTarget then
 		-- No prediction for easy mode bots
 		if core.nDifficulty == core.nEASY_DIFFCULTY then
-			vecDirection = Vector3.Normalize(vecBestPosition - vecPosition)
+			return Vector3.Normalize(vecBestPosition - vecPosition)
 		else
 			
 			
 			
 			
 			
-			vecDirection = Vector3.Normalize(vecBestPosition - vecPosition)
+			return Vector3.Normalize(vecBestPosition - vecPosition)
 			
 		
 		
@@ -363,7 +359,7 @@ local function getClosestObjectDirectionFromTable(vecPosition, tObjectTable)
 		end
 	end
 	
-	return vecDirection	
+	return nil	
 end
 
 -- Find the best direction to cast Shadow Step
@@ -416,15 +412,7 @@ local function getStepDirection(botBrain, unitTarget)
 		end
 	end 
 
---[[ 
-	-- Check Cliffs
-	if not vecDirection then
-		vecDirection = checkForCliffs(vecTargetPosition)
-		if vecDirection then
-			bSuccess = true
-		end
-	end
---]]
+	-- Cliff checking would go here if it were possible
 	
 	-- Push Towards Ally Well
 	if not vecDirection then
@@ -556,7 +544,9 @@ local function HarassHeroExecuteOverride(botBrain)
 
 	if not bActionTaken then
 		return object.harassExecuteOld(botBrain)
-	end 
+	end
+	
+	return bActionTaken
 end
 
 object.harassExecuteOld = behaviorLib.HarassHeroBehavior["Execute"]
@@ -571,7 +561,7 @@ local function funcRetreatFromThreatExecuteOverride(botBrain)
 	
 	-- Use Rift Stalk to retreat if possible
 	local abilStalk = skills.abilStalk
-	if abilStalk:CanActivate() and core.unitSelf:GetHealthPercent() < .55 then
+	if abilStalk:CanActivate() and core.unitSelf:GetHealthPercent() < .625 then
 		bActionTaken = core.OrderAbility(botBrain, abilStalk)
 	end
 	
